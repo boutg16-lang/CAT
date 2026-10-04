@@ -15,6 +15,10 @@ on:
     - cron: "0 9 * * *" # daily 09:00 UTC
   workflow_dispatch:
 
+concurrency:
+  group: policy-watch-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   issues: write
   contents: read
@@ -22,6 +26,7 @@ permissions:
 jobs:
   watch:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
 
