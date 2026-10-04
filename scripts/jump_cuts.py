@@ -58,7 +58,7 @@ def detect_silences(video_path, threshold_db=-35.0, min_duration=MIN_SILENCE):
     if len(ends) == len(starts) - 1:  # trailing silence never ended
         ends.append(None)
     out = []
-    for s, e in zip(starts, ends):
+    for s, e in zip(starts, ends, strict=False):
         if e is None:
             continue
         out.append((s, e, round(e - s, 3)))

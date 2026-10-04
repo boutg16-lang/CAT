@@ -109,7 +109,7 @@ def fetch_summary(ya, days=28):
     rows = (resp.get("rows") or [[]])[0]
     cols = [c["name"] for c in resp.get("columnHeaders", [])]
     return {"days": days, "start": start, "end": end,
-            "metrics": dict(zip(cols, rows))}
+            "metrics": dict(zip(cols, rows, strict=False))}
 
 
 def fetch_top_videos(ya, yt, days=28, limit=10):

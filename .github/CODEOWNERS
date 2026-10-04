@@ -13,7 +13,7 @@
 /.github/workflows/         @mostafabonnif-beep
 /.github/CODEOWNERS         @mostafabonnif-beep
 /.pre-commit-config.yaml    @mostafabonnif-beep
-/ruff.toml                  @mostafabonnif-beep
+/pyproject.toml             @mostafabonnif-beep
 
 # الأسرار والإعدادات
 /.env.example               @mostafabonnif-beep

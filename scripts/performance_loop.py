@@ -176,7 +176,7 @@ def _corr(pairs: list[tuple[float, float]]) -> float | None:
     denom = (sum(a * a for a in dx) * sum(b * b for b in dy)) ** 0.5
     if not denom:
         return None
-    return round(sum(a * b for a, b in zip(dx, dy)) / denom, 3)
+    return round(sum(a * b for a, b in zip(dx, dy, strict=False)) / denom, 3)
 
 
 def _strength(value: float | None) -> str:

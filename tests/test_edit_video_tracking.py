@@ -85,7 +85,7 @@ def test_smooth_boxes_per_slot_alpha_one_is_identity():
     out, count = edit_video.smooth_boxes_per_slot(
         boxes, smoothers, 1.0, 0, 1920, 1080)
     assert count == 2
-    for got, raw in zip(out, boxes):
+    for got, raw in zip(out, boxes, strict=False):
         assert [round(v, 6) for v in got] == raw
 
 

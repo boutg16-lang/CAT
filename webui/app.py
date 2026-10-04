@@ -2176,7 +2176,7 @@ with gr.Blocks(**_blocks_kwargs) as demo:
                     checks = segments_review._rows_to_bool_list(df)
                 except Exception:
                     checks = []
-                for row_values, keep in zip(rows, checks):
+                for row_values, keep in zip(rows, checks, strict=False):
                     row_values[0] = bool(keep)
                 return rows, "✅ " + msg
 

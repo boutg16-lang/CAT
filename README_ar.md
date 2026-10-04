@@ -1,7 +1,7 @@
 # OUSSAMA Cutter
 [![CI](https://github.com/boutg16-lang/CAT/actions/workflows/ci.yml/badge.svg)](https://github.com/boutg16-lang/CAT/actions/workflows/ci.yml)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
-[![Tests](https://img.shields.io/badge/tests-1238%20passed-brightgreen)](tests/)
+[![Tests](https://img.shields.io/badge/tests-1903%20passed-brightgreen)](tests/)
 
 **البديل المفتوح المصدر المجاني 100% لـ Opus Clip — يعمل محلياً وبلا حدود**
 حوّل فيديوهات يوتيوب الطويلة إلى مقاطع قصيرة فيروسية جاهزة لـ TikTok وInstagram Reels وYouTube Shorts — بذكاء اصطناعي متقدم، وترجمات ديناميكية، وتتبع دقيق للوجه، وترجمة تلقائية. كل شيء يعمل على جهازك.
@@ -338,7 +338,7 @@ python -m scripts.upload_gate --project VIRALS/مشروعك --index 0 --title ".
 
 **متى أضيف كلمة جديدة للقائمة الكنسية (لكل المستخدمين):**
 1. أضف الكلمة إلى قائمة `BLOCKLIST` في `scripts/safety_filter.py`
-2. صدّر الحزمة برقم إصدار جديد: `python scripts/export_blocklist_pack.py --version 3`
+2. صدّر الحزمة برقم إصدار جديد: `python scripts/export_blocklist_pack.py --version 6`
 3. ادفع إلى المستودع — ويصل التحديث لكل التثبيتات خلال 24 ساعة
 
 **تذكير تلقائي**: سير عمل مرتين أسبوعياً (الاثنين + الخميس) في GitHub يفتح
@@ -371,7 +371,7 @@ Issue تلقائياً إذا مرّت 14 يوماً بلا تحديث، ويغ�
 دمجنا **المعجم الأكاديمي للكلمات المسيئة العربية** (إعداد محمد عطية، Google
 Research — مبني على مجموعات موسومة يدوياً من وسائل التواصل) كمصدر ثالث
 للقاعدة: 148 مصطلحاً عربياً جديداً (شتائم هوية، تحقير، عبارات كراهية
-للجنسين). القاعدة الكنسية الآن **296 مصطلحاً** (v4).
+للجنسين). القاعدة الكنسية الآن **336 مصطلحاً** (v6).
 
 - **تتحدث باستمرار**: `python scripts/arabic_lexicon_importer.py --merge-blocklist`
   يسحب أحدث نسخة من المستودع الأم ويضيف الكلمات الجديدة، وسير عمل أسبوعي
