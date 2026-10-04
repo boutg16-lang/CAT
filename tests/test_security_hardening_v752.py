@@ -123,3 +123,87 @@ def test_gitignore_covers_oauth_secret_filenames():
         ignore = handle.read()
     for pattern in ("token.json", "client_secrets*.json", "*.pem", ".viralcutter/"):
         assert pattern in ignore, "missing .gitignore protection for %r" % pattern
+
+
+# ---------------------------------------------------------------------------
+# 5. Duplicate-prevention gates fail closed when their engine breaks
+# ---------------------------------------------------------------------------
+
+def test_content_guard_perceptual_failure_blocks(tmp_path, monkeypatch):
+    from scripts import originality
+
+    root = tmp_path / "VIRALS"
+    project = _project(root, "p")
+    video = project / "clip.mp4"
+    video.write_bytes(b"rendered-clip")
+    # A prior publish of the same source gives the perceptual gate rows to
+    # compare against (records.insert).
+    content_guard.record_publish(str(project), "youtube", str(video), index=0,
+                                 result={"status": "uploaded", "video_id": "x"})
+
+    def boom(*_args, **_kwargs):
+        raise RuntimeError("fingerprint engine down")
+
+    monkeypatch.setattr(originality, "assess_against_registry", boom)
+
+    verdict = content_guard.assess_clip(
+        str(project), 0, title="t", video_path=str(video), platform="youtube",
+        perceptual=True)
+
+    assert verdict["allowed"] is False
+    assert any(r["code"] == "perceptual_check_unavailable" for r in verdict["reasons"])
+
+
+def test_content_guard_cross_project_failure_blocks(tmp_path, monkeypatch):
+    from scripts import content_ledger
+
+    root = tmp_path / "VIRALS"
+    project = _project(root, "p")
+    video = project / "clip.mp4"
+    video.write_bytes(b"rendered-clip")
+
+    def boom(*_args, **_kwargs):
+        raise RuntimeError("ledger unavailable")
+
+    monkeypatch.setattr(content_ledger, "find_visual_matches", boom)
+
+    verdict = content_guard.assess_clip(
+        str(project), 0, title="t", video_path=str(video), platform="youtube")
+
+    assert verdict["allowed"] is False
+    assert any(r["code"] == "cross_project_check_unavailable" for r in verdict["reasons"])
+
+
+# ---------------------------------------------------------------------------
+# 6. Music copyright gate: silent only when it is not a hard gate
+# ---------------------------------------------------------------------------
+
+def test_upload_gate_music_block_mode_failure_blocks(tmp_path, monkeypatch):
+    from scripts import music_fingerprint
+
+    def boom(*_args, **_kwargs):
+        raise RuntimeError("fpcalc missing")
+
+    monkeypatch.setattr(music_fingerprint, "music_gate_reasons", boom)
+
+    verdict = upload_gate.check_clip(
+        str(tmp_path), 0, "clean title", "clean caption", ["shorts"],
+        music_gate="block")
+
+    assert verdict["allowed"] is False
+    assert any(r.get("source") == "music_fingerprint" for r in verdict["reasons"])
+
+
+def test_upload_gate_music_warn_mode_failure_does_not_add_block(tmp_path, monkeypatch):
+    from scripts import music_fingerprint
+
+    def boom(*_args, **_kwargs):
+        raise RuntimeError("fpcalc missing")
+
+    monkeypatch.setattr(music_fingerprint, "music_gate_reasons", boom)
+
+    verdict = upload_gate.check_clip(
+        str(tmp_path), 0, "clean title", "clean caption", ["shorts"],
+        music_gate="warn")
+
+    assert not any(r.get("source") == "music_fingerprint" for r in verdict["reasons"])

@@ -192,8 +192,8 @@ def _visual_fingerprint_for(video_path):
         if hashes and key:
             # Store the raw hashes so similarity can be computed later.
             return {"key": key, "hashes": "|".join(str(h) for h in hashes)}
-    except Exception:
-        pass
+    except Exception as exc:
+        print("[content_guard] visual fingerprint unavailable: {}".format(exc))
     return None
 
 
@@ -392,8 +392,18 @@ def assess_clip(project_folder: str, index: int | None = None, *, title: str = "
                                 int((visual.get("similarity") or 0) * 100)),
                         })
                         evidence["perceptual_match"] = visual.get("matched")
-                except Exception:
-                    pass
+                except Exception as exc:
+                    # The check was requested (perceptual + video + prior
+                    # publishes) but could not run: fail CLOSED so a
+                    # re-encoded duplicate is not exported silently.
+                    print("[content_guard] perceptual duplicate check failed: {}".format(exc))
+                    reasons.append({
+                        "source": "content_guard",
+                        "code": "perceptual_check_unavailable",
+                        "severity": "high",
+                        "detail": "تعذّر تشغيل فحص التكرار البصري ({}); يُمنع التصدير "
+                                  "الآلي حتى تتوفر البوابة.".format(exc),
+                    })
 
 
             if video_path and os.path.isfile(video_path):
@@ -416,8 +426,17 @@ def assess_clip(project_folder: str, index: int | None = None, *, title: str = "
                             "detail": "هذا المقطع مطابق بصرياً لمخرج سابق في مشروع آخر على {} (تشابه {}%).".format(
                                 platform, int((matches[0].get("similarity") or 0) * 100)),
                         })
-                except Exception:
-                    pass
+                except Exception as exc:
+                    # Cross-project duplicate detection is a hard gate; a silent
+                    # failure would let a near-identical re-post through.
+                    print("[content_guard] cross-project visual check failed: {}".format(exc))
+                    reasons.append({
+                        "source": "content_ledger",
+                        "code": "cross_project_check_unavailable",
+                        "severity": "high",
+                        "detail": "تعذّر تشغيل فحص التكرار عبر المشاريع ({}); يُمنع "
+                                  "التصدير الآلي حتى تتوفر البوابة.".format(exc),
+                    })
 
             since = (datetime.now(timezone.utc) - timedelta(days=1)).isoformat().replace("+00:00", "Z")
             row = connection.execute(
@@ -572,8 +591,8 @@ def filter_segments(project_folder: str, segments: list[dict[str, Any]] | None,
     try:
         from scripts import content_ledger
         content_ledger.record_safety_report(project_folder, report, registry_path)
-    except Exception:
-        pass
+    except Exception as exc:
+        print("[content_guard] could not persist safety report: {}".format(exc))
     return kept, report
 
 

@@ -592,8 +592,17 @@ def check_clip(project_folder, index=None, title="", caption="", hashtags=None,
     try:
         from scripts.music_fingerprint import music_gate_reasons
         reasons += music_gate_reasons(project_folder, index, gate=music_gate)
-    except Exception:
-        pass  # never let an optional check crash the gate
+    except Exception as exc:
+        # Optional in warn/off mode, but in "block" mode a failure must not
+        # silently drop the copyright gate.
+        print("[upload_gate] music fingerprint check failed: {}".format(exc))
+        if str(music_gate or "").strip().lower() == "block":
+            reasons.append({
+                "source": "music_fingerprint",
+                "detail": "music copyright check could not run ({}); refusing "
+                          "upload".format(exc),
+                "severity": "high",
+            })
 
     meta = check_metadata(title, caption, hashtags or [], extra_rules_path)
 
