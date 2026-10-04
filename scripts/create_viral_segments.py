@@ -931,7 +931,18 @@ def _rank_segments_with_diversity(segments, limit=None):
                         candidate_text, prior_text)
                     if similarity >= 0.45:
                         semantic_penalty = max(semantic_penalty, min(6.0, (similarity - 0.35) * 10.0))
-            adjustment = repeat_penalty + angle_penalty + semantic_penalty
+            # v7.52: graded temporal-overlap penalty. The duplicate gate has
+            # already removed >=40% overlaps; among the survivors, a candidate
+            # that still shares footage with an earlier pick (e.g. 0.39) is
+            # demoted in favour of a genuinely different moment, so the
+            # exported order keeps the most distinct clips first.
+            temporal_penalty = 0.0
+            for prior in ranked:
+                ratio = _window_overlap_ratio(candidate, prior)
+                if ratio > 0.0:
+                    temporal_penalty = max(temporal_penalty, min(10.0, ratio * 25.0))
+            adjustment = (repeat_penalty + angle_penalty + semantic_penalty
+                          + temporal_penalty)
             value = _as_float(candidate.get("selection_score", candidate.get("score", 0)))
             value -= adjustment
             if value > best_value:
@@ -1259,6 +1270,25 @@ def window_duplicate_config():
     }
 
 
+def _window_overlap_ratio(left, right):
+    """Fraction of the shorter window shared by two candidates (0.0 = none).
+
+    Pure temporal measure: intersection / min(duration). Used both by the
+    duplicate gate and by the diversity ranking's graded overlap penalty.
+    """
+    try:
+        left_start, left_end = float(left["start_time"]), float(left["end_time"])
+        right_start, right_end = float(right["start_time"]), float(right["end_time"])
+    except (KeyError, TypeError, ValueError):
+        return 0.0
+    intersection = max(0.0, min(left_end, right_end) - max(left_start, right_start))
+    if intersection <= 0.0:
+        return 0.0
+    left_duration = max(0.1, left_end - left_start)
+    right_duration = max(0.1, right_end - right_start)
+    return intersection / min(left_duration, right_duration)
+
+
 def _windows_are_near_duplicates(left, right):
     """Return True when two candidates contain substantially the same source.
 
@@ -1270,16 +1300,13 @@ def _windows_are_near_duplicates(left, right):
     0.40 floor.
     """
     try:
-        left_start, left_end = float(left["start_time"]), float(left["end_time"])
-        right_start, right_end = float(right["start_time"]), float(right["end_time"])
+        left_start = float(left["start_time"])
+        right_start = float(right["start_time"])
     except (KeyError, TypeError, ValueError):
         return False
-    intersection = max(0.0, min(left_end, right_end) - max(left_start, right_start))
-    if intersection <= 0.0:
+    overlap_ratio = _window_overlap_ratio(left, right)
+    if overlap_ratio <= 0.0:
         return False
-    left_duration = max(0.1, left_end - left_start)
-    right_duration = max(0.1, right_end - right_start)
-    overlap_ratio = intersection / min(left_duration, right_duration)
     config = window_duplicate_config()
     if overlap_ratio >= config["overlap"]:
         return True

@@ -134,3 +134,41 @@ def test_process_segments_export_is_pairwise_distinct():
         for j in range(i + 1, len(windows)):
             assert not cvs._windows_are_near_duplicates(windows[i], windows[j]), (
                 f"exported duplicate footage: {windows[i]} vs {windows[j]}")
+
+
+# ---------------------------------------------------------------------------
+# 4. Overlap ratio + diversity demotion of partially overlapping picks
+# ---------------------------------------------------------------------------
+
+def test_window_overlap_ratio_measures_shared_fraction():
+    assert cvs._window_overlap_ratio(_win(0, 20), _win(0, 20)) == 1.0
+    assert cvs._window_overlap_ratio(_win(0, 20), _win(10, 30)) == 0.5
+    assert cvs._window_overlap_ratio(_win(0, 20), _win(40, 60)) == 0.0
+    assert cvs._window_overlap_ratio({"title": "no times"}, _win(0, 20)) == 0.0
+
+
+def test_diversity_ranking_demotes_partially_overlapping_pick():
+    # After A (best) is picked, B shares 1/3 of A's footage while C is a
+    # genuinely different moment. B's raw score is higher, but the graded
+    # temporal penalty must push C ahead so distinct clips rank first.
+    segments = [
+        {"title": "A", "topic": "t1", "start_time": 0, "end_time": 30,
+         "selection_score": 90},
+        {"title": "B", "topic": "t2", "start_time": 20, "end_time": 50,
+         "selection_score": 88},
+        {"title": "C", "topic": "t3", "start_time": 100, "end_time": 130,
+         "selection_score": 80},
+    ]
+    ranked = cvs._rank_segments_with_diversity(segments, 3)
+    assert [item["title"] for item in ranked] == ["A", "C", "B"]
+    assert ranked[2]["diversity_adjustment"] > 0
+
+
+def test_diversity_ranking_keeps_disjoint_moments_unpenalised():
+    segments = [
+        {"title": "A", "start_time": 0, "end_time": 30, "selection_score": 90},
+        {"title": "B", "start_time": 100, "end_time": 130, "selection_score": 80},
+    ]
+    ranked = cvs._rank_segments_with_diversity(segments, 2)
+    assert [item["title"] for item in ranked] == ["A", "B"]
+    assert all(item["diversity_adjustment"] == 0.0 for item in ranked)
