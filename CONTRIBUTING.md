@@ -2,12 +2,25 @@
 
 Thanks for helping make the open-source Opus Clip alternative better! 🚀
 
+## AI coding agents
+
+The repository provides native instruction entry points for common coding agents:
+
+- OpenAI Codex and agents that support `AGENTS.md`: [`AGENTS.md`](AGENTS.md)
+- Claude Code: [`CLAUDE.md`](CLAUDE.md)
+- Gemini CLI: [`GEMINI.md`](GEMINI.md)
+- GitHub Copilot: [`.github/copilot-instructions.md`](.github/copilot-instructions.md)
+- Cursor: [`.cursor/rules/cat-project.mdc`](.cursor/rules/cat-project.mdc)
+
+`AGENTS.md` is the single source of truth; tool-specific files only point agents to it. These files provide guidance, not GitHub credentials or write access. Agents must use a branch and pull request, and must not bypass repository protections. The current `main` branch policy requires an approval from someone other than the latest pusher.
+
 ## Before you start
 
-- Read [`docs/DEVELOPER_HANDOVER.md`](docs/DEVELOPER_HANDOVER.md) — it explains
-  what was built, how the safety pipeline works, and the gotchas.
-- Read [`docs/REMAINING_AFTER_V6_9.md`](docs/REMAINING_AFTER_V6_9.md) — the
-  living list of what's done and what's left.
+- Read [`AGENTS.md`](AGENTS.md) for the current project rules.
+- [`docs/DEVELOPER_HANDOVER.md`](docs/DEVELOPER_HANDOVER.md) and
+  [`docs/REMAINING_AFTER_V6_9.md`](docs/REMAINING_AFTER_V6_9.md) are historical
+  snapshots, not current handover or roadmap documents. Verify their claims
+  against the current code, tests, `app_version.py`, and `changelog.md`.
 
 ## Hard rules (the CI will enforce these)
 
@@ -34,13 +47,12 @@ python -m pytest tests/   # full suite
 python -m scripts.preflight --check   # environment sanity
 ```
 
-New features need tests (we're at 500+). Test in a hermetic way — the SDK
-tests must pass both with and without the full dependency stack installed.
+New features need tests. Run the current suite rather than relying on historical test counts. Keep tests hermetic where possible; SDK-dependent paths should be covered with deterministic mocks.
 
 ## Submitting
 
 - Small, focused PRs.
-- Update `changelog.md` (top entry) + `docs/REMAINING_AFTER_V6_9.md` table
-  when you complete a roadmap item.
-- `.github/workflows/*` changes can only be merged by the repo owner (the
-  agent app lacks Workflows permission) — note it in the PR.
+- Update `changelog.md` and maintained documentation when behavior or release
+  details change. `docs/REMAINING_AFTER_V6_9.md` is historical, not the current
+  roadmap.
+- Treat `.github/workflows/*` changes as high impact: explain the reason and risk in the PR, keep permissions least-privilege, and verify the workflow results before merge.
