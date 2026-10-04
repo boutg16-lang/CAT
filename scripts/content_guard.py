@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 import os
 import re
 import sqlite3
@@ -23,6 +24,7 @@ SCHEMA_VERSION = 2
 MAX_SOURCE_PUBLISHES_PER_DAY = 8
 OVERLAP_BLOCK_RATIO = 0.85
 FINGERPRINT_NAME = "visual_fingerprint"
+logger = logging.getLogger(__name__)
 
 
 def _now() -> str:
@@ -467,6 +469,18 @@ def _write_json_atomic(path: str, value: dict[str, Any]) -> None:
                 pass
 
 
+def _load_semantic_tools():
+    """Load the local policy checker without turning import errors into an allow."""
+    try:
+        from scripts.safety_filter import load_transcript, segment_text
+        from scripts.semantic_safety import analyze_text
+        return segment_text, analyze_text, load_transcript, None
+    except Exception as exc:
+        error = "{}: {}".format(type(exc).__name__, exc)[:500]
+        logger.error("Semantic safety tools unavailable; automatic export will fail closed: %s", error)
+        return None, None, None, error
+
+
 def filter_segments(project_folder: str, segments: list[dict[str, Any]] | None,
                     *, platform: str = "youtube", registry_path: str | None = None) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     """Remove duplicate and policy-ambiguous candidates before export.
@@ -477,14 +491,16 @@ def filter_segments(project_folder: str, segments: list[dict[str, Any]] | None,
     """
     kept: list[dict[str, Any]] = []
     blocked: list[dict[str, Any]] = []
+    segment_text_fn, analyze_text_fn, load_transcript_fn, semantic_error = _load_semantic_tools()
     transcript = []
-    try:
-        from scripts.safety_filter import load_transcript, segment_text
-        from scripts.semantic_safety import analyze_text
-        transcript = load_transcript(project_folder)
-    except Exception:
-        segment_text = None
-        analyze_text = None
+    if load_transcript_fn is not None:
+        try:
+            transcript = load_transcript_fn(project_folder)
+        except Exception as exc:
+            logger.warning(
+                "Transcript loading failed; semantic review will use embedded segment text (%s)",
+                type(exc).__name__,
+            )
     for index, segment in enumerate(segments or []):
         verdict = assess_clip(project_folder, index, title=segment.get("title", ""),
                               platform=platform, segment=segment,
@@ -506,23 +522,43 @@ def filter_segments(project_folder: str, segments: list[dict[str, Any]] | None,
             })
             verdict["evidence"]["batch_duplicate_of"] = batch_duplicate.get("title", "")
             verdict["allowed"] = False
-        if segment_text is not None and analyze_text is not None:
-            text = segment_text(segment, transcript)
-            semantic = analyze_text(" ".join([
-                text, str(segment.get("title", "") or ""),
-                str(segment.get("caption", "") or ""),
-                str(segment.get("reasoning", "") or ""),
-            ]))
-            if semantic.get("action") in {"block", "review"}:
-                verdict["reasons"].append({
-                    "source": "content_guard",
-                    "code": "semantic_policy_{}".format(semantic.get("action")),
-                    "severity": "high",
-                    "detail": "تم إيقاف المرشح آلياً: {}".format(
-                        semantic.get("explanation", "يتطلب السياق مراجعة")),
-                })
-                verdict["evidence"]["semantic"] = semantic
-                verdict["allowed"] = False
+        semantic = None
+        semantic_action = None
+        if semantic_error is None:
+            try:
+                text = segment_text_fn(segment, transcript)
+                semantic = analyze_text_fn(" ".join([
+                    text, str(segment.get("title", "") or ""),
+                    str(segment.get("caption", "") or ""),
+                    str(segment.get("reasoning", "") or ""),
+                ]))
+                semantic_action = semantic.get("action")
+            except Exception as exc:
+                semantic_error = "{}: {}".format(type(exc).__name__, exc)[:500]
+                logger.error(
+                    "Semantic safety analysis failed; blocking automatic export: %s",
+                    semantic_error,
+                )
+        if semantic_error is not None:
+            verdict["reasons"].append({
+                "source": "content_guard",
+                "code": "semantic_safety_unavailable",
+                "severity": "high",
+                "detail": "تعذّر تنفيذ فحص السلامة الدلالي ({}); يُمنع التصدير الآلي.".format(
+                    semantic_error),
+            })
+            verdict["evidence"]["semantic_error"] = semantic_error
+            verdict["allowed"] = False
+        elif semantic_action in {"block", "review"}:
+            verdict["reasons"].append({
+                "source": "content_guard",
+                "code": "semantic_policy_{}".format(semantic_action),
+                "severity": "high",
+                "detail": "تم إيقاف المرشح آلياً: {}".format(
+                    semantic.get("explanation", "يتطلب السياق مراجعة")),
+            })
+            verdict["evidence"]["semantic"] = semantic
+            verdict["allowed"] = False
         if verdict["allowed"]:
             kept.append(segment)
         else:

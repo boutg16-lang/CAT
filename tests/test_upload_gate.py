@@ -50,6 +50,37 @@ class TestBlocklist:
         assert verdict["allowed"] is True
         assert verdict["reasons"] == []
 
+    def test_semantic_import_failure_refuses_upload(self, tmp_path, monkeypatch):
+        import sys
+
+        monkeypatch.setitem(sys.modules, "scripts.semantic_safety", None)
+        verdict = ug.check_clip(str(tmp_path), 0, "Nice title", "Nice caption", ["shorts"])
+
+        assert verdict["allowed"] is False
+        reason = next(
+            reason for reason in verdict["reasons"]
+            if reason["source"] == "semantic_safety_unavailable"
+        )
+        assert reason["severity"] == "high"
+        assert "ModuleNotFoundError" in reason["detail"] or "ImportError" in reason["detail"]
+
+    def test_semantic_analysis_failure_refuses_upload(self, tmp_path, monkeypatch):
+        from scripts import semantic_safety
+
+        def fail_analysis(_text):
+            raise RuntimeError("semantic engine failed")
+
+        monkeypatch.setattr(semantic_safety, "analyze_text", fail_analysis)
+        verdict = ug.check_clip(str(tmp_path), 0, "Nice title", "Nice caption", ["shorts"])
+
+        assert verdict["allowed"] is False
+        reason = next(
+            reason for reason in verdict["reasons"]
+            if reason["source"] == "semantic_safety_unavailable"
+        )
+        assert reason["severity"] == "high"
+        assert "RuntimeError: semantic engine failed" in reason["detail"]
+
     def test_blocked_clip_refused(self, tmp_path):
         _write(tmp_path, ug.PUBLISH_BLOCKLIST, {
             "blocked": [{"index": 0, "title": "Bad", "axes": {"reuse": {"score": 80}}}]})

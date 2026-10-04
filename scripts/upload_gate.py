@@ -28,6 +28,7 @@ Design notes
 
 import datetime as _datetime
 import json
+import logging
 import os
 import sys
 import time
@@ -39,6 +40,8 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 from scripts import content_guard
 from scripts.metadata_compliance import check_metadata, summarize_metadata
 from scripts.title_text import fit_publish_title
+
+logger = logging.getLogger(__name__)
 
 PUBLISH_BLOCKLIST = "publish_blocklist.json"
 SAFETY_REPORT = "safety_report.json"
@@ -613,8 +616,14 @@ def check_clip(project_folder, index=None, title="", caption="", hashtags=None,
                     semantic.get("explanation", "policy pattern detected")),
                 "severity": "high",
             })
-    except Exception:
-        pass
+    except Exception as exc:
+        error = "{}: {}".format(type(exc).__name__, exc)[:500]
+        logger.error("Publish metadata safety check failed; refusing upload: %s", error)
+        reasons.append({
+            "source": "semantic_safety_unavailable",
+            "detail": "local semantic safety check failed; upload refused: {}".format(error),
+            "severity": "high",
+        })
 
     if not meta["ok"]:
         reasons.append({

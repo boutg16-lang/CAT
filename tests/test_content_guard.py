@@ -144,3 +144,64 @@ def test_acknowledgement_unlocks_without_deleting_incident(tmp_path):
     state = content_guard.channel_status(str(project), "youtube")
     assert state["locked"] is False
     assert state["count"] == 1
+
+
+def test_semantic_safety_unavailable_blocks_automatic_export(tmp_path, monkeypatch):
+    root = tmp_path / "VIRALS"
+    root.mkdir()
+    source = tmp_path / "source.mp4"
+    source.write_bytes(b"source")
+    project = _project(root, "project", source)
+    monkeypatch.setattr(
+        content_guard,
+        "_load_semantic_tools",
+        lambda: (None, None, None, "ImportError: semantic checker unavailable"),
+    )
+
+    kept, report = content_guard.filter_segments(
+        str(project), [{"title": "clean clip", "text": "ordinary advice",
+                       "start_time": 10, "end_time": 20}],
+    )
+
+    assert kept == []
+    assert report["blocked"] == 1
+    reasons = report["blocked_segments"][0]["reasons"]
+    assert any(
+        reason["code"] == "semantic_safety_unavailable"
+        and reason["severity"] == "high"
+        for reason in reasons
+    )
+    assert report["blocked_segments"][0]["evidence"]["semantic_error"] == (
+        "ImportError: semantic checker unavailable"
+    )
+
+
+def test_semantic_analysis_exception_blocks_clip(tmp_path, monkeypatch):
+    root = tmp_path / "VIRALS"
+    root.mkdir()
+    source = tmp_path / "source.mp4"
+    source.write_bytes(b"source")
+    project = _project(root, "project", source)
+
+    def fail_analysis(_text):
+        raise RuntimeError("analysis failed")
+
+    monkeypatch.setattr(
+        content_guard,
+        "_load_semantic_tools",
+        lambda: (lambda segment, _transcript: segment.get("text", ""),
+                 fail_analysis, lambda _project: [], None),
+    )
+
+    kept, report = content_guard.filter_segments(
+        str(project), [{"title": "ordinary advice", "text": "ordinary advice",
+                       "start_time": 10, "end_time": 20}],
+    )
+
+    assert kept == []
+    assert report["blocked"] == 1
+    reasons = report["blocked_segments"][0]["reasons"]
+    assert any(reason["code"] == "semantic_safety_unavailable" for reason in reasons)
+    assert report["blocked_segments"][0]["evidence"]["semantic_error"] == (
+        "RuntimeError: analysis failed"
+    )
