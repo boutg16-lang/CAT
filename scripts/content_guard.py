@@ -467,6 +467,22 @@ def _write_json_atomic(path: str, value: dict[str, Any]) -> None:
                 pass
 
 
+def _load_semantic_tools():
+    """Import the semantic-safety layer, reporting failure instead of hiding it.
+
+    Returns ``(segment_text, analyze_text, load_transcript, error)``. A non-empty
+    ``error`` means the semantic policy layer is unavailable and the caller MUST
+    fail CLOSED — otherwise an import/load failure silently turns the policy
+    check into a no-op (the v7.52 hardening fix).
+    """
+    try:
+        from scripts.safety_filter import load_transcript, segment_text
+        from scripts.semantic_safety import analyze_text
+        return segment_text, analyze_text, load_transcript, None
+    except Exception as exc:  # pragma: no cover - defensive, exercised by tests
+        return None, None, None, "{}: {}".format(type(exc).__name__, exc)
+
+
 def filter_segments(project_folder: str, segments: list[dict[str, Any]] | None,
                     *, platform: str = "youtube", registry_path: str | None = None) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     """Remove duplicate and policy-ambiguous candidates before export.
@@ -477,14 +493,15 @@ def filter_segments(project_folder: str, segments: list[dict[str, Any]] | None,
     """
     kept: list[dict[str, Any]] = []
     blocked: list[dict[str, Any]] = []
+    segment_text, analyze_text, load_transcript, semantic_error = _load_semantic_tools()
     transcript = []
-    try:
-        from scripts.safety_filter import load_transcript, segment_text
-        from scripts.semantic_safety import analyze_text
-        transcript = load_transcript(project_folder)
-    except Exception:
-        segment_text = None
-        analyze_text = None
+    if load_transcript is not None:
+        try:
+            transcript = load_transcript(project_folder)
+        except Exception:
+            # A missing/unreadable transcript is not a policy failure: the
+            # semantic check still runs on the title/caption metadata below.
+            transcript = []
     for index, segment in enumerate(segments or []):
         verdict = assess_clip(project_folder, index, title=segment.get("title", ""),
                               platform=platform, segment=segment,
@@ -523,6 +540,19 @@ def filter_segments(project_folder: str, segments: list[dict[str, Any]] | None,
                 })
                 verdict["evidence"]["semantic"] = semantic
                 verdict["allowed"] = False
+        elif semantic_error is not None:
+            # Fail CLOSED: the policy layer could not be loaded, so no
+            # candidate may be auto-exported on the strength of a check that
+            # never ran. The reason keeps the failure auditable.
+            verdict["reasons"].append({
+                "source": "content_guard",
+                "code": "semantic_safety_unavailable",
+                "severity": "high",
+                "detail": "تعذّر تحميل فحص السلامة الدلالي ({}); يُمنع التصدير الآلي "
+                          "حتى تتوفر البوابة.".format(semantic_error),
+            })
+            verdict["evidence"]["semantic_error"] = semantic_error
+            verdict["allowed"] = False
         if verdict["allowed"]:
             kept.append(segment)
         else:

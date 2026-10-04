@@ -182,13 +182,13 @@ def _report_entry_matches_clip(project_folder, index, entry, require_boundaries=
             return False
         try:
             return all(abs(float(left) - float(right)) <= 0.25
-                       for left, right in zip(current_times, report_times))
+                       for left, right in zip(current_times, report_times, strict=False))
         except (TypeError, ValueError):
             return False
     if all(value is not None for value in current_times + report_times):
         try:
             return all(abs(float(left) - float(right)) <= 0.25
-                       for left, right in zip(current_times, report_times))
+                       for left, right in zip(current_times, report_times, strict=False))
         except (TypeError, ValueError):
             return False
     current_title = str(current.get("title") or "").strip().casefold()
@@ -613,8 +613,16 @@ def check_clip(project_folder, index=None, title="", caption="", hashtags=None,
                     semantic.get("explanation", "policy pattern detected")),
                 "severity": "high",
             })
-    except Exception:
-        pass
+    except Exception as exc:
+        # Fail CLOSED: a caller that skipped preprocessing relies on THIS check.
+        # If the safety layer cannot run, refuse the automatic publish instead
+        # of silently letting unvetted metadata through.
+        reasons.append({
+            "source": "semantic_safety",
+            "detail": "publish metadata safety check failed ({}: {}); refusing "
+                      "automatic publish".format(type(exc).__name__, exc),
+            "severity": "high",
+        })
 
     if not meta["ok"]:
         reasons.append({
@@ -1224,8 +1232,21 @@ def _save_token(platform, payload):
     path = _token_file(platform)
     os.makedirs(os.path.dirname(path), exist_ok=True)
     tmp = path + ".tmp"
-    with open(tmp, "w", encoding="utf-8") as f:
-        json.dump(payload, f, ensure_ascii=False, indent=2)
+    # OAuth tokens are credentials: create the temp file 0600 from the start so
+    # it is never briefly world/group-readable, then atomically replace. The
+    # final file inherits the 0600 mode of the temp file.
+    fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            json.dump(payload, f, ensure_ascii=False, indent=2)
+            f.flush()
+            os.fsync(f.fileno())
+    except Exception:
+        try:
+            os.remove(tmp)
+        except OSError:
+            pass
+        raise
     os.replace(tmp, path)
     return path
 
