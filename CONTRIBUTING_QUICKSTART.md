@@ -5,8 +5,8 @@
 ## 1. التهيئة
 
 ```bash
-git clone https://github.com/mostafabonnif-beep/cat.git
-cd cat
+git clone https://github.com/boutg16-lang/CAT.git
+cd CAT
 python3 -m venv .venv && source .venv/bin/activate
 make dev-install
 cp .env.example .env      # ثم املأ المفاتيح المطلوبة

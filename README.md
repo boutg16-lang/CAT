@@ -1,5 +1,5 @@
 # OUSSAMA Cutter
-[![CI](https://github.com/mostafabonnif-beep/cat/actions/workflows/ci.yml/badge.svg)](https://github.com/mostafabonnif-beep/cat/actions/workflows/ci.yml)
+[![CI](https://github.com/boutg16-lang/CAT/actions/workflows/ci.yml/badge.svg)](https://github.com/boutg16-lang/CAT/actions/workflows/ci.yml)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
 [![Tests](https://img.shields.io/badge/tests-1238%20passed-brightgreen)](tests/)
 [![Discord](https://dcbadge.limes.pink/api/server/tAdPHFAbud)](https://discord.gg/tAdPHFAbud)<br>
@@ -7,8 +7,8 @@
 **OUSSAMA Cutter — alternativa open-source 100% gratuita, local e ilimitada ao Opus Clip**
 Transforme vídeos longos do YouTube em shorts virais otimizados para TikTok, Instagram Reels e YouTube Shorts – com IA de ponta, legendas dinâmicas, *face tracking* preciso e tradução automática. Tudo rodando na sua máquina.
 
-[![Stars](https://img.shields.io/github/stars/mostafabonnif-beep/cat?style=social)](https://github.com/mostafabonnif-beep/cat/stargazers)
-[![Forks](https://img.shields.io/github/forks/mostafabonnif-beep/cat?style=social)](https://github.com/mostafabonnif-beep/cat/network/members)
+[![Stars](https://img.shields.io/github/stars/boutg16-lang/CAT?style=social)](https://github.com/boutg16-lang/CAT/stargazers)
+[![Forks](https://img.shields.io/github/forks/boutg16-lang/CAT?style=social)](https://github.com/boutg16-lang/CAT/network/members)
 [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1UZKzeqjIeEyvq9nPx7s_4mU6xlkZQn_R?usp=sharing)
 
 [English](README_en.md) • [Português](README.md) • [العربية](README_ar.md)

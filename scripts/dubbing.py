@@ -230,7 +230,10 @@ def dub_clip(clip_path: str, subs_json: str, out_path: str, *,
             chain.append("adelay={}:all=1".format(delay_ms))
             parts.append("[{}:a]{}[{}]".format(offset + 1, ",".join(chain), label))
             labels.append("[{}]".format(label))
-        dub_chain = "{}amix=inputs={}:normalize=0:dropout_transition=0,apad[dub]".format(
+        # Reset timestamps after delaying and mixing.  Without this, FFmpeg can
+        # emit the padded audio with timestamps that move backwards; AAC then
+        # drops the frames (the output looks valid but is effectively silent).
+        dub_chain = "{}amix=inputs={}:normalize=0:dropout_transition=0,apad,asetpts=PTS-STARTPTS[dub]".format(
             "".join(labels), len(labels))
         parts.append(dub_chain)
 
