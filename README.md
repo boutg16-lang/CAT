@@ -164,5 +164,5 @@ O ViralCutter é mantido pela comunidade. Junte-se a nós para democratizar a cr
 - ✅ **Instalação reproduzível**: `uv sync` (usa `uv.lock`); o fluxo clássico `install_dependencies.bat` continua igual.
 
 
-**Versão Atual**: 7.51.0-pro — dublagem na interface (aba Publicar) com consentimento explícito de rede, e canal de atualização assinado
+**Versão Atual**: 7.52.0-pro — endurecimento de segurança (gates fail-closed, tokens OAuth 0600), CI de menor privilégio e testes de QA
 *ViralCutter: Porque clips virais não precisam custar uma fortuna.* 🚀
