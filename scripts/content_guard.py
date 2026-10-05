@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 import os
 import re
 import sqlite3
@@ -23,6 +24,7 @@ SCHEMA_VERSION = 2
 MAX_SOURCE_PUBLISHES_PER_DAY = 8
 OVERLAP_BLOCK_RATIO = 0.85
 FINGERPRINT_NAME = "visual_fingerprint"
+logger = logging.getLogger(__name__)
 
 
 def _now() -> str:
@@ -487,19 +489,18 @@ def _write_json_atomic(path: str, value: dict[str, Any]) -> None:
 
 
 def _load_semantic_tools():
-    """Import the semantic-safety layer, reporting failure instead of hiding it.
-
-    Returns ``(segment_text, analyze_text, load_transcript, error)``. A non-empty
-    ``error`` means the semantic policy layer is unavailable and the caller MUST
-    fail CLOSED — otherwise an import/load failure silently turns the policy
-    check into a no-op (the v7.52 hardening fix).
-    """
+    """Load the policy checker; callers must fail closed when it is unavailable."""
     try:
         from scripts.safety_filter import load_transcript, segment_text
         from scripts.semantic_safety import analyze_text
         return segment_text, analyze_text, load_transcript, None
-    except Exception as exc:  # pragma: no cover - defensive, exercised by tests
-        return None, None, None, "{}: {}".format(type(exc).__name__, exc)
+    except Exception as exc:
+        error = "{}: {}".format(type(exc).__name__, exc)[:500]
+        logger.error(
+            "Semantic safety tools unavailable; automatic export will fail closed: %s",
+            error,
+        )
+        return None, None, None, error
 
 
 def filter_segments(project_folder: str, segments: list[dict[str, Any]] | None,
@@ -512,15 +513,16 @@ def filter_segments(project_folder: str, segments: list[dict[str, Any]] | None,
     """
     kept: list[dict[str, Any]] = []
     blocked: list[dict[str, Any]] = []
-    segment_text, analyze_text, load_transcript, semantic_error = _load_semantic_tools()
+    segment_text_fn, analyze_text_fn, load_transcript_fn, semantic_error = _load_semantic_tools()
     transcript = []
-    if load_transcript is not None:
+    if load_transcript_fn is not None:
         try:
-            transcript = load_transcript(project_folder)
-        except Exception:
-            # A missing/unreadable transcript is not a policy failure: the
-            # semantic check still runs on the title/caption metadata below.
-            transcript = []
+            transcript = load_transcript_fn(project_folder)
+        except Exception as exc:
+            logger.warning(
+                "Transcript loading failed; semantic review will use embedded segment text (%s)",
+                type(exc).__name__,
+            )
     for index, segment in enumerate(segments or []):
         verdict = assess_clip(project_folder, index, title=segment.get("title", ""),
                               platform=platform, segment=segment,
@@ -542,35 +544,42 @@ def filter_segments(project_folder: str, segments: list[dict[str, Any]] | None,
             })
             verdict["evidence"]["batch_duplicate_of"] = batch_duplicate.get("title", "")
             verdict["allowed"] = False
-        if segment_text is not None and analyze_text is not None:
-            text = segment_text(segment, transcript)
-            semantic = analyze_text(" ".join([
-                text, str(segment.get("title", "") or ""),
-                str(segment.get("caption", "") or ""),
-                str(segment.get("reasoning", "") or ""),
-            ]))
-            if semantic.get("action") in {"block", "review"}:
-                verdict["reasons"].append({
-                    "source": "content_guard",
-                    "code": "semantic_policy_{}".format(semantic.get("action")),
-                    "severity": "high",
-                    "detail": "تم إيقاف المرشح آلياً: {}".format(
-                        semantic.get("explanation", "يتطلب السياق مراجعة")),
-                })
-                verdict["evidence"]["semantic"] = semantic
-                verdict["allowed"] = False
-        elif semantic_error is not None:
-            # Fail CLOSED: the policy layer could not be loaded, so no
-            # candidate may be auto-exported on the strength of a check that
-            # never ran. The reason keeps the failure auditable.
+        semantic = None
+        semantic_action = None
+        if semantic_error is None:
+            try:
+                text = segment_text_fn(segment, transcript)
+                semantic = analyze_text_fn(" ".join([
+                    text, str(segment.get("title", "") or ""),
+                    str(segment.get("caption", "") or ""),
+                    str(segment.get("reasoning", "") or ""),
+                ]))
+                semantic_action = semantic.get("action")
+            except Exception as exc:
+                semantic_error = "{}: {}".format(type(exc).__name__, exc)[:500]
+                logger.error(
+                    "Semantic safety analysis failed; blocking automatic export: %s",
+                    semantic_error,
+                )
+        if semantic_error is not None:
             verdict["reasons"].append({
                 "source": "content_guard",
                 "code": "semantic_safety_unavailable",
                 "severity": "high",
-                "detail": "تعذّر تحميل فحص السلامة الدلالي ({}); يُمنع التصدير الآلي "
-                          "حتى تتوفر البوابة.".format(semantic_error),
+                "detail": "تعذّر تنفيذ فحص السلامة الدلالي ({}); يُمنع التصدير الآلي.".format(
+                    semantic_error),
             })
             verdict["evidence"]["semantic_error"] = semantic_error
+            verdict["allowed"] = False
+        elif semantic_action in {"block", "review"}:
+            verdict["reasons"].append({
+                "source": "content_guard",
+                "code": "semantic_policy_{}".format(semantic_action),
+                "severity": "high",
+                "detail": "تم إيقاف المرشح آلياً: {}".format(
+                    semantic.get("explanation", "يتطلب السياق مراجعة")),
+            })
+            verdict["evidence"]["semantic"] = semantic
             verdict["allowed"] = False
         if verdict["allowed"]:
             kept.append(segment)

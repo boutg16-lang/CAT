@@ -28,6 +28,7 @@ Design notes
 
 import datetime as _datetime
 import json
+import logging
 import os
 import sys
 import time
@@ -39,6 +40,8 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 from scripts import content_guard
 from scripts.metadata_compliance import check_metadata, summarize_metadata
 from scripts.title_text import fit_publish_title
+
+logger = logging.getLogger(__name__)
 
 PUBLISH_BLOCKLIST = "publish_blocklist.json"
 SAFETY_REPORT = "safety_report.json"
@@ -623,13 +626,12 @@ def check_clip(project_folder, index=None, title="", caption="", hashtags=None,
                 "severity": "high",
             })
     except Exception as exc:
-        # Fail CLOSED: a caller that skipped preprocessing relies on THIS check.
-        # If the safety layer cannot run, refuse the automatic publish instead
-        # of silently letting unvetted metadata through.
+        error = "{}: {}".format(type(exc).__name__, exc)[:500]
+        logger.error("Publish metadata safety check failed; refusing upload: %s", error)
         reasons.append({
             "source": "semantic_safety",
-            "detail": "publish metadata safety check failed ({}: {}); refusing "
-                      "automatic publish".format(type(exc).__name__, exc),
+            "code": "semantic_safety_unavailable",
+            "detail": "local semantic safety check failed; upload refused: {}".format(error),
             "severity": "high",
         })
 
