@@ -4,7 +4,7 @@
 ; the resulting setup.exe to the GitHub Release next to OUSSAMA-Cutter.exe.
 
 #ifndef MyAppVersion
-  #define MyAppVersion "6.16.1"
+  #define MyAppVersion "7.52.0"
 #endif
 
 #define MyAppName "OUSSAMA Cutter"

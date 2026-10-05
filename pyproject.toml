@@ -126,3 +126,6 @@ omit = ["*/export_xml_lib/*", "*/tests/*"]
 [tool.coverage.report]
 show_missing = true
 skip_covered = true
+
+[tool.setuptools.exclude-package-data]
+"*" = ["*.py[cod]", "__pycache__/*"]
