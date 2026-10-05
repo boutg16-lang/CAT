@@ -17,6 +17,7 @@
     "\nExisting viral segments found: {}": "\nExisting viral segments found: {}",
     "Use existing viral segments? (yes/no) [default: yes]: ": "Use existing viral segments? (yes/no) [default: yes]: ",
     "Loaded existing viral segments. Skipping configuration prompts.": "Loaded existing viral segments. Skipping configuration prompts.",
+    "Saved clip choices are incomplete or outdated; regenerating with the current selection rules.": "Saved clip choices are incomplete or outdated; regenerating with the current selection rules.",
     "Error loading JSON: {}.": "Error loading JSON: {}.",
     "\nCurrent duration settings: {}s - {}s": "\nCurrent duration settings: {}s - {}s",
     "Change duration? (y/n) [default: n]: ": "Change duration? (y/n) [default: n]: ",
