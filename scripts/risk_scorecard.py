@@ -84,7 +84,7 @@ def frame_similarity(video_a, video_b, sample_points, other_points=None):
     if not left_points:
         return None
     hashes = []
-    for left_point, right_point in zip(left_points, right_points):
+    for left_point, right_point in zip(left_points, right_points, strict=False):
         ha = _grab_gray_frame(video_a, left_point)
         hb = _grab_gray_frame(video_b, right_point)
         if ha is None or hb is None:
@@ -508,15 +508,19 @@ def analyze_project(project_folder, viral_segments=None, gate_threshold=HIGH_REU
         try:
             with open(blocklist_path, "w", encoding="utf-8") as f:
                 json.dump({"blocked": blocked}, f, ensure_ascii=False, indent=2)
-        except Exception:
-            pass
+        except Exception as exc:
+            # The upload gate reads this file to block risky clips; failing to
+            # write it must never be silent (fail-open).
+            print("[risk] could not write publish blocklist {}: {}".format(
+                blocklist_path, exc))
     else:
         # Do not let a previous run's blocklist keep affecting a clean rerun.
         try:
             if os.path.exists(blocklist_path):
                 os.remove(blocklist_path)
-        except Exception:
-            pass
+        except Exception as exc:
+            print("[risk] could not remove stale publish blocklist {}: {}".format(
+                blocklist_path, exc))
 
     try:
         from scripts import review_queue

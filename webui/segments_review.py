@@ -272,7 +272,7 @@ def apply_selection(project_path, rows):
     if len(selected) < len(segments):
         selected += [True] * (len(segments) - len(selected))
 
-    kept_segments = [s for s, keep in zip(segments, selected) if keep]
+    kept_segments = [s for s, keep in zip(segments, selected, strict=False) if keep]
     if not kept_segments:
         kept_segments = segments  # never write an empty selection
         selected = [True] * len(segments)

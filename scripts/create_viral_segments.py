@@ -964,9 +964,9 @@ if _arabic_text is not None:
 else:
     _ARABIC_NUM_TRANSLATION = str.maketrans({
         # Arabic-Indic digits U+0660..U+0669 (٠١٢٣٤٥٦٧٨٩)
-        **{ord(src): dst for src, dst in zip("٠١٢٣٤٥٦٧٨٩", "0123456789")},
+        **{ord(src): dst for src, dst in zip("٠١٢٣٤٥٦٧٨٩", "0123456789", strict=False)},
         # Persian digits U+06F0..U+06F9 (۰۱۲۳۴۵۶۷۸۹)
-        **{ord(src): dst for src, dst in zip("۰۱۲۳۴۵۶۷۸۹", "0123456789")},
+        **{ord(src): dst for src, dst in zip("۰۱۲۳۴۵۶۷۸۹", "0123456789", strict=False)},
         # Arabic decimal separator ٫ (U+066B) and the Arabic comma ٬ (U+066C)
         # — Arabic/Darija LLM output routinely uses both as a decimal point.
         0x066B: ".",

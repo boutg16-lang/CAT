@@ -55,8 +55,14 @@ VIRALS/
 subtitle_templates.json
 temp_subtitle_config.json
 client_secrets.json
+client_secrets*.json
 yt_token.json
+token.json
 *.zip
+*.pem
+
+# Local credential store used by the YouTube/TikTok/Instagram gates
+.viralcutter/
 
 # Local WebUI form preferences (machine-specific, not shared)
 webui_settings.json

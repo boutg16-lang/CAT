@@ -120,7 +120,7 @@ def _similarity_between(left: list[int] | None, right: list[int] | None) -> floa
     if pairs == 0:
         return 0.0
     close = 0
-    for a, b in zip(left[:pairs], right[:pairs]):
+    for a, b in zip(left[:pairs], right[:pairs], strict=False):
         # 64-bit d-hash: <=6 differing bits is a near-identical frame.
         if _hamming(a, b) <= 6:
             close += 1

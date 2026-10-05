@@ -1,7 +1,7 @@
 # OUSSAMA Cutter
 [![CI](https://github.com/boutg16-lang/CAT/actions/workflows/ci.yml/badge.svg)](https://github.com/boutg16-lang/CAT/actions/workflows/ci.yml)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
-[![Tests](https://img.shields.io/badge/tests-1238%20passed-brightgreen)](tests/)
+[![Tests](https://img.shields.io/badge/tests-1903%20passed-brightgreen)](tests/)
 [![Discord](https://dcbadge.limes.pink/api/server/tAdPHFAbud)](https://discord.gg/tAdPHFAbud)<br>
 
 **OUSSAMA Cutter — alternativa open-source 100% gratuita, local e ilimitada ao Opus Clip**
@@ -164,5 +164,5 @@ O ViralCutter é mantido pela comunidade. Junte-se a nós para democratizar a cr
 - ✅ **Instalação reproduzível**: `uv sync` (usa `uv.lock`); o fluxo clássico `install_dependencies.bat` continua igual.
 
 
-**Versão Atual**: 7.51.0-pro — dublagem na interface (aba Publicar) com consentimento explícito de rede, e canal de atualização assinado
+**Versão Atual**: 7.52.0-pro — endurecimento de segurança (gates fail-closed, tokens OAuth 0600), CI de menor privilégio e testes de QA
 *ViralCutter: Porque clips virais não precisam custar uma fortuna.* 🚀
