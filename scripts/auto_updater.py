@@ -38,7 +38,7 @@ import subprocess
 import sys
 import urllib.request
 
-REPO = "mostafabonnif-beep/cat"
+REPO = "boutg16-lang/CAT"
 UPDATES_DIR = "updates"
 UPDATE_INFO = "update_info.json"
 
