@@ -1,5 +1,7 @@
 # Development Notes
 
+> This file contains historical development notes. Version, test-count, and roadmap statements may be stale; verify them against the current source, `app_version.py`, `changelog.md`, and test suite before relying on them.
+
 ## Done
 - ✅ Test suite: 1414 tests (`tests/`) covering i18n, subtitle helpers, JSON cutting, saving, and WebUI utils. Run with `pytest` (install `requirements-dev.txt`).
 - ✅ i18n overhaul: `ar_SA.json` fully covers every UI/CLI string; `en_US.json` cleaned (had 71 Arabic values); `pt_BR`/`tr_TR` completed with English fallback. Coverage guarded by `tests/test_i18n_completeness.py`.
