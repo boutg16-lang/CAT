@@ -104,3 +104,4 @@ windows_diagnostics.json
 # so packaged builds can pin the update trust root (scripts/update_manifest.py).
 keys/*.key
 !keys/*.pub
+.browser-bridge-state/

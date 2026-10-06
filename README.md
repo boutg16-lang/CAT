@@ -61,6 +61,8 @@ Veja a [política de segurança e rede](SECURITY.md#network-and-data-flow) para 
 ![WebUi Library](https://github.com/user-attachments/assets/b0204e4b-0e5d-4ee4-b7b4-cac044b76c24)
 *Biblioteca: Galeria estilo OpusClip e controles intuitivos*
 
+> **Teste assistido da interface:** consulte [`docs/browser-bridge.md`](docs/browser-bridge.md) para testar a WebUI em um Chromium isolado no seu computador.
+
 ## Instalação Local (Super Rápida ⚡)
 
 ### Pré-requisitos (Instalação "do zero")
