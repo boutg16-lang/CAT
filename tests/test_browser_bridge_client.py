@@ -3,6 +3,65 @@ import pytest
 from tools.browser_bridge import agent, client, policy
 
 
+def test_project_preflight_accepts_a_reachable_local_port(monkeypatch):
+    class FakeSocket:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+    calls = []
+    monkeypatch.setattr(
+        client.socket,
+        "create_connection",
+        lambda address, timeout: calls.append((address, timeout)) or FakeSocket(),
+    )
+
+    assert client.probe_project_url("http://127.0.0.1:7860") == "http://127.0.0.1:7860"
+    assert calls == [(('127.0.0.1', 7860), 2.0)]
+
+
+def test_project_preflight_explains_unreachable_local_app_without_consuming_code(monkeypatch):
+    def refuse_connection(address, timeout):
+        raise ConnectionRefusedError("connection refused")
+
+    monkeypatch.setattr(client.socket, "create_connection", refuse_connection)
+
+    with pytest.raises(client.BridgeError) as error:
+        client.probe_project_url("http://127.0.0.1:7860")
+
+    assert "127.0.0.1:7860" in str(error.value)
+    assert client._t("The pairing code has not been used.") in str(error.value)
+
+
+def test_browser_preflight_failure_does_not_submit_pairing_code(monkeypatch):
+    import queue
+    import threading
+
+    calls = []
+    monkeypatch.setattr(
+        client,
+        "probe_project_url",
+        lambda _: (_ for _ in ()).throw(client.BridgeError("local app is unavailable")),
+    )
+    monkeypatch.setattr(client, "request", lambda *args, **kwargs: calls.append(args))
+    events = queue.Queue()
+
+    client.run_browser_session(
+        client.DEFAULT_RELAY_URL,
+        "one-time-pairing-code",
+        "http://127.0.0.1:7860",
+        events,
+        threading.Event(),
+        {},
+    )
+
+    assert calls == []
+    assert events.get_nowait()[0] == "error"
+    assert events.get_nowait()[0] == "stopped"
+
+
 def test_agent_cannot_open_the_native_file_picker():
     class Locator:
         clicked = False

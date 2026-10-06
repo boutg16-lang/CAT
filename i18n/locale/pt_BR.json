@@ -671,5 +671,12 @@
     "🔒 YouTube login (cookies)": "🔒 Login do YouTube (cookies)",
     "🗑 Remove": "🗑 Remover",
     "🚫 Block this word": "🚫 Bloquear esta palavra",
-    "🛡️ Safety filter (hate speech)": "🛡️ Filtro de segurança (discurso de ódio)"
+    "🛡️ Safety filter (hate speech)": "🛡️ Filtro de segurança (discurso de ódio)",
+    "Check local URL": "Verificar URL local",
+    "Check the local URL before pairing. A failed check will not use the pairing code.": "Verifique a URL local antes de parear. Uma falha na verificação não usará o código de pareamento.",
+    "The local CAT page is reachable at {url}. You can pair now.": "A página local do CAT está acessível em {url}. Você já pode parear.",
+    "The CAT page at {url} is unreachable ({reason}). Start OUSSAMA Cutter, wait for its WebUI, then use the exact local URL shown in your browser.": "Não foi possível acessar a página do CAT em {url} ({reason}). Inicie o OUSSAMA Cutter, aguarde a WebUI e use a URL local exata exibida no navegador.",
+    "The pairing code has not been used.": "O código de pareamento não foi usado.",
+    "Local page unavailable": "Página local indisponível",
+    "Checking the local CAT page before pairing…": "Verificando a página local do CAT antes do pareamento…"
 }

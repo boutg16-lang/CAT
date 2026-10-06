@@ -2,10 +2,12 @@ import argparse
 import base64
 import os
 import queue
+import socket
 import threading
 import time
 from urllib.parse import urlsplit
 
+from i18n.i18n import DEFAULT_LANGUAGE, I18nAuto
 from tools.browser_bridge.agent import (
     DEFAULT_RELAY_URL,
     BridgeError,
@@ -24,9 +26,25 @@ from tools.browser_bridge.policy import (
     validate_project_url,
 )
 
+_t = I18nAuto(DEFAULT_LANGUAGE)
+
 DEFAULT_PROJECT_URL = "http://127.0.0.1:7860"
 MAX_PAGE_TEXT = 16000
 MAX_CONTROLS = 100
+
+
+def probe_project_url(project_url, timeout=2.0):
+    normalized_url = validate_project_url(project_url)
+    parsed = urlsplit(normalized_url)
+    try:
+        with socket.create_connection((parsed.hostname, parsed.port), timeout=timeout):
+            return normalized_url
+    except OSError as exc:
+        reason = exc.strerror or str(exc) or type(exc).__name__
+        message = _t(
+            "The CAT page at {url} is unreachable ({reason}). Start OUSSAMA Cutter, wait for its WebUI, then use the exact local URL shown in your browser."
+        ).format(url=normalized_url, reason=reason[:160])
+        raise BridgeError("{} {}".format(message, _t("The pairing code has not been used."))) from exc
 
 CONSENT_NOTICE = "Only this isolated CAT tab is shared. Zo receives page text or screenshots only when it requests an inspection. The session stays active until you press Stop or close this window; it ends if the relay restarts or the heartbeat is lost for 2 minutes."
 
@@ -161,20 +179,14 @@ def perform_action(page, context, project_url, action):
 
 def run_browser_session(relay_url, pairing_code, project_url, events, stop_event, session_state):
     client_token = None
+    session_id = None
     browser = None
     try:
         relay_url = validate_relay_url(relay_url)
         project_url = validate_project_url(project_url)
-        paired = request(relay_url, "/v1/pair", method="POST", body={"pairing_code": pairing_code, "project_url": project_url}, timeout=15)
-        session_id = paired.get("session_id")
-        if not isinstance(session_id, str) or not session_id:
-            raise BridgeError("The relay returned an invalid session")
-        client_token = paired["client_token"]
-        session_state.update({"session_id": session_id, "client_token": client_token})
+        probe_project_url(project_url)
         if stop_event.is_set():
-            request(relay_url, "/v1/sessions/{}/stop".format(session_id), method="POST", token=client_token, body={}, timeout=5)
             return
-        events.put(("status", "Connected. The isolated CAT tab is ready for Zo to inspect; stop the session when finished."))
         try:
             from playwright.sync_api import sync_playwright
         except ImportError as exc:
@@ -197,7 +209,22 @@ def run_browser_session(relay_url, pairing_code, project_url, events, stop_event
             page = context.new_page()
             page.set_default_timeout(8000)
             page.goto(project_url, wait_until="domcontentloaded", timeout=30000)
-            events.put(("status", "Ready. The local CAT page is isolated; Zo can inspect it while you work."))
+            if stop_event.is_set():
+                context.close()
+                return
+            paired = request(
+                relay_url,
+                "/v1/pair",
+                method="POST",
+                body={"pairing_code": pairing_code, "project_url": project_url},
+                timeout=15,
+            )
+            session_id = paired.get("session_id")
+            if not isinstance(session_id, str) or not session_id:
+                raise BridgeError("The relay returned an invalid session")
+            client_token = paired["client_token"]
+            session_state.update({"session_id": session_id, "client_token": client_token})
+            events.put(("paired", "Ready. The local CAT page is isolated; Zo can inspect it while you work."))
             while not stop_event.is_set():
                 try:
                     response = request(relay_url, "/v1/sessions/{}/next".format(session_id), token=client_token, timeout=25)
@@ -232,7 +259,7 @@ def run_browser_session(relay_url, pairing_code, project_url, events, stop_event
     except Exception as exc:
         events.put(("error", "{}: {}".format(type(exc).__name__, str(exc)[:500])))
     finally:
-        if client_token:
+        if client_token and session_id:
             try:
                 request(relay_url, "/v1/sessions/{}/stop".format(session_id), method="POST", token=client_token, body={}, timeout=5)
             except Exception:
@@ -275,15 +302,26 @@ class BrowserBridgeWindow:
         _add_consent_controls(ttk, frame, self.consent)
         buttons = ttk.Frame(frame)
         buttons.pack(anchor="w", pady=6)
+        self.check_button = ttk.Button(buttons, text=_t("Check local URL"), command=self.check_local_url)
+        self.check_button.pack(side="left", padx=(0, 8))
         self.start_button = ttk.Button(buttons, text="Connect and start", command=self.start)
         self.start_button.pack(side="left")
         self.stop_button = ttk.Button(buttons, text="Stop session", command=self.stop, state="disabled")
         self.stop_button.pack(side="left", padx=8)
-        self.status = tk.StringVar(value="The project must already be running locally (default: port 7860).")
+        self.status = tk.StringVar(value=_t("Check the local URL before pairing. A failed check will not use the pairing code."))
         ttk.Label(frame, textvariable=self.status, wraplength=545).pack(anchor="w", pady=(12, 4))
         ttk.Label(frame, text="Scope: isolated Chromium profile; localhost project only; no downloads, uploads, saved cookies, or arbitrary code execution.", wraplength=545).pack(anchor="w", pady=(8, 0))
         self.root.protocol("WM_DELETE_WINDOW", self.close)
         self.root.after(150, self.poll_events)
+
+    def check_local_url(self):
+        try:
+            project_url = probe_project_url(self.url.get())
+        except (BridgeError, PolicyError) as exc:
+            self.status.set(str(exc))
+            self.messagebox.showwarning(_t("Local page unavailable"), str(exc))
+            return
+        self.status.set(_t("The local CAT page is reachable at {url}. You can pair now.").format(url=project_url))
 
     def start(self):
         if not self.consent.get():
@@ -297,12 +335,12 @@ class BrowserBridgeWindow:
         except PolicyError as exc:
             self.messagebox.showerror("Invalid connection", str(exc))
             return
-        self.code.set("")
         self.session_state.clear()
         self.stop_event.clear()
+        self.check_button.configure(state="disabled")
         self.start_button.configure(state="disabled")
         self.stop_button.configure(state="normal")
-        self.status.set("Connecting to the one-time relay…")
+        self.status.set(_t("Checking the local CAT page before pairing…"))
         self.worker = threading.Thread(
             target=run_browser_session,
             args=(self.relay_url, code, project_url, self.events, self.stop_event, self.session_state),
@@ -338,8 +376,11 @@ class BrowserBridgeWindow:
             while True:
                 kind, message = self.events.get_nowait()
                 self.status.set(message)
+                if kind == "paired":
+                    self.code.set("")
                 if kind in {"error", "stopped"}:
                     self.session_state.clear()
+                    self.check_button.configure(state="normal")
                     self.start_button.configure(state="normal")
                     self.stop_button.configure(state="disabled")
                 if kind == "error":

@@ -671,5 +671,12 @@
     "🔒 YouTube login (cookies)": "🔒 YouTube girişi (çerezler)",
     "🗑 Remove": "🗑 Kaldır",
     "🚫 Block this word": "🚫 Bu kelimeyi engelle",
-    "🛡️ Safety filter (hate speech)": "🛡️ Güvenlik filtresi (nefret söylemi)"
+    "🛡️ Safety filter (hate speech)": "🛡️ Güvenlik filtresi (nefret söylemi)",
+    "Check local URL": "Yerel URL'yi kontrol et",
+    "Check the local URL before pairing. A failed check will not use the pairing code.": "Eşleştirmeden önce yerel URL'yi kontrol edin. Kontrol başarısız olursa eşleştirme kodu kullanılmaz.",
+    "The local CAT page is reachable at {url}. You can pair now.": "Yerel CAT sayfasına {url} adresinden erişilebiliyor. Şimdi eşleştirme yapabilirsiniz.",
+    "The CAT page at {url} is unreachable ({reason}). Start OUSSAMA Cutter, wait for its WebUI, then use the exact local URL shown in your browser.": "{url} adresindeki CAT sayfasına ulaşılamıyor ({reason}). OUSSAMA Cutter'ı başlatın, WebUI'nin açılmasını bekleyin ve tarayıcıda görünen tam yerel URL'yi kullanın.",
+    "The pairing code has not been used.": "Eşleştirme kodu kullanılmadı.",
+    "Local page unavailable": "Yerel sayfa kullanılamıyor",
+    "Checking the local CAT page before pairing…": "Eşleştirmeden önce yerel CAT sayfası kontrol ediliyor…"
 }

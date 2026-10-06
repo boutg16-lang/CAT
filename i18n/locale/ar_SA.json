@@ -671,5 +671,12 @@
     "🔒 YouTube login (cookies)": "🔒 تسجيل دخول يوتيوب (كوكيز)",
     "🗑 Remove": "🗑 حذف",
     "🚫 Block this word": "🚫 احظر هذه الكلمة",
-    "🛡️ Safety filter (hate speech)": "🛡️ فلتر الأمان (الكلام الذي يحضّ على الكراهية)"
+    "🛡️ Safety filter (hate speech)": "🛡️ فلتر الأمان (الكلام الذي يحضّ على الكراهية)",
+    "Check local URL": "تحقق من العنوان المحلي",
+    "Check the local URL before pairing. A failed check will not use the pairing code.": "تحقق من العنوان المحلي قبل الاقتران. فشل الفحص لا يستهلك رمز الاقتران.",
+    "The local CAT page is reachable at {url}. You can pair now.": "واجهة CAT المحلية متاحة على {url}. يمكنك الاقتران الآن.",
+    "The CAT page at {url} is unreachable ({reason}). Start OUSSAMA Cutter, wait for its WebUI, then use the exact local URL shown in your browser.": "تعذر الوصول إلى واجهة CAT على {url} ({reason}). شغّل OUSSAMA Cutter وانتظر ظهور الواجهة، ثم استخدم العنوان المحلي الظاهر في المتصفح.",
+    "The pairing code has not been used.": "لم يُستخدم رمز الاقتران.",
+    "Local page unavailable": "الواجهة المحلية غير متاحة",
+    "Checking the local CAT page before pairing…": "جارٍ فحص واجهة CAT المحلية قبل الاقتران…"
 }
