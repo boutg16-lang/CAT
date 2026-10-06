@@ -28,6 +28,22 @@ DEFAULT_PROJECT_URL = "http://127.0.0.1:7860"
 MAX_PAGE_TEXT = 16000
 MAX_CONTROLS = 100
 
+CONSENT_NOTICE = "Page text and screenshots can be sent to Zo; personal browser data is never used."
+
+
+def _add_consent_controls(ttk, parent, consent_variable):
+    ttk.Checkbutton(
+        parent,
+        text="I approve this 15-minute test session.",
+        variable=consent_variable,
+    ).pack(anchor="w", pady=(16, 2))
+    ttk.Label(
+        parent,
+        text=CONSENT_NOTICE,
+        wraplength=545,
+        justify="left",
+    ).pack(anchor="w", pady=(0, 8))
+
 
 def _safe_request_url(value, allowed_origin):
     try:
@@ -256,12 +272,7 @@ class BrowserBridgeWindow:
         self.code = tk.StringVar()
         ttk.Entry(frame, textvariable=self.code, width=40, show="•").pack(anchor="w")
         self.consent = tk.BooleanVar(value=False)
-        ttk.Checkbutton(
-            frame,
-            text="I approve this 15-minute test session. Page text and screenshots can be sent to Zo; personal browser data is never used.",
-            variable=self.consent,
-            wraplength=545,
-        ).pack(anchor="w", pady=(16, 8))
+        _add_consent_controls(ttk, frame, self.consent)
         buttons = ttk.Frame(frame)
         buttons.pack(anchor="w", pady=6)
         self.start_button = ttk.Button(buttons, text="Connect and start", command=self.start)
