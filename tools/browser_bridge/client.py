@@ -28,13 +28,13 @@ DEFAULT_PROJECT_URL = "http://127.0.0.1:7860"
 MAX_PAGE_TEXT = 16000
 MAX_CONTROLS = 100
 
-CONSENT_NOTICE = "Page text and screenshots can be sent to Zo; personal browser data is never used."
+CONSENT_NOTICE = "Only this isolated CAT tab is shared. Zo receives page text or screenshots only when it requests an inspection. The session stays active until you press Stop or close this window; it ends if the relay restarts or the heartbeat is lost for 2 minutes."
 
 
 def _add_consent_controls(ttk, parent, consent_variable):
     ttk.Checkbutton(
         parent,
-        text="I approve this 15-minute test session.",
+        text="I authorize Zo to access this isolated CAT tab until I press Stop.",
         variable=consent_variable,
     ).pack(anchor="w", pady=(16, 2))
     ttk.Label(
@@ -174,7 +174,7 @@ def run_browser_session(relay_url, pairing_code, project_url, events, stop_event
         if stop_event.is_set():
             request(relay_url, "/v1/sessions/{}/stop".format(session_id), method="POST", token=client_token, body={}, timeout=5)
             return
-        events.put(("status", "Connected. Starting a fresh, temporary browser profile."))
+        events.put(("status", "Connected. The isolated CAT tab is ready for Zo to inspect; stop the session when finished."))
         try:
             from playwright.sync_api import sync_playwright
         except ImportError as exc:
@@ -197,7 +197,7 @@ def run_browser_session(relay_url, pairing_code, project_url, events, stop_event
             page = context.new_page()
             page.set_default_timeout(8000)
             page.goto(project_url, wait_until="domcontentloaded", timeout=30000)
-            events.put(("status", "Ready. Only the local CAT page is reachable; no existing browser data is used."))
+            events.put(("status", "Ready. The local CAT page is isolated; Zo can inspect it while you work."))
             while not stop_event.is_set():
                 try:
                     response = request(relay_url, "/v1/sessions/{}/next".format(session_id), token=client_token, timeout=25)
@@ -205,7 +205,7 @@ def run_browser_session(relay_url, pairing_code, project_url, events, stop_event
                     if stop_event.is_set():
                         break
                     if exc.status in {401, 403, 404}:
-                        events.put(("status", "Relay rejected or expired the session; closing the temporary browser."))
+                        events.put(("status", "The relay or heartbeat is unavailable; closing the isolated browser."))
                         break
                     events.put(("status", "Relay retry: {}".format(redact_sensitive_text(str(exc))[:200])))
                     time.sleep(1)
@@ -287,7 +287,7 @@ class BrowserBridgeWindow:
 
     def start(self):
         if not self.consent.get():
-            self.messagebox.showwarning("Consent required", "Approve the temporary session before connecting.")
+            self.messagebox.showwarning("Consent required", "Approve local CAT access before connecting.")
             return
         try:
             project_url = validate_project_url(self.url.get())
@@ -351,7 +351,7 @@ class BrowserBridgeWindow:
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Pair a temporary browser profile with Zo for local CAT testing.")
+    parser = argparse.ArgumentParser(description="Pair an isolated local CAT browser with Zo for inspection and testing.")
     parser.add_argument("--relay-url", default=os.environ.get("CAT_BROWSER_BRIDGE_URL", DEFAULT_RELAY_URL))
     args = parser.parse_args()
     import tkinter as tk

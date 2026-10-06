@@ -14,6 +14,15 @@ def _patch_state(monkeypatch, tmp_path):
     monkeypatch.setattr(zo_client, "CONTROL_TOKEN_FILE", tmp_path / "state" / "control.token")
 
 
+def test_old_pairing_deadline_does_not_expire_persistent_session(monkeypatch, tmp_path):
+    _patch_state(monkeypatch, tmp_path)
+    zo_client._save_state(
+        {"session_id": "test-session", "agent_token": "private-agent-token", "expires_at": time.time() - 1}
+    )
+
+    assert zo_client._read_state()["session_id"] == "test-session"
+
+
 def test_start_shows_pairing_code_but_never_agent_token(monkeypatch, tmp_path, capsys):
     _patch_state(monkeypatch, tmp_path)
     (tmp_path / "state").mkdir(mode=0o700)
@@ -35,7 +44,10 @@ def test_start_shows_pairing_code_but_never_agent_token(monkeypatch, tmp_path, c
     output = capsys.readouterr().out
     assert "ABCD-EFGH" in output
     assert "private-agent-token-value" not in output
+    assert "The pairing code is valid for 15 minutes." in output
+    assert "no fixed time limit" in output
     state = json.loads(zo_client.STATE_FILE.read_text(encoding="utf-8"))
+    assert "expires_at" not in state
     assert state["agent_token"] == "private-agent-token-value"
     if os.name == "posix":
         assert stat.S_IMODE(zo_client.STATE_FILE.stat().st_mode) == 0o600

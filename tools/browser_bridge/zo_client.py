@@ -4,7 +4,6 @@ import json
 import os
 import sys
 import tempfile
-import time
 from pathlib import Path
 
 from tools.browser_bridge.agent import (
@@ -58,7 +57,7 @@ def _save_state(state):
     _atomic_write(STATE_FILE, payload)
 
 
-def _read_state(allow_expired=False):
+def _read_state():
     if not STATE_FILE.exists() or STATE_FILE.is_symlink():
         raise BridgeError("No local CAT browser session. Start one first.")
     try:
@@ -70,12 +69,6 @@ def _read_state(allow_expired=False):
         for key in ("session_id", "agent_token")
     ):
         raise BridgeError("The local browser session file is invalid")
-    expires_at = state.get("expires_at")
-    if type(expires_at) not in {int, float}:
-        raise BridgeError("The local browser session file is invalid")
-    if not allow_expired and expires_at <= time.time():
-        _remove_state()
-        raise BridgeError("The browser session expired. Start a new session.")
     return state
 
 
@@ -98,7 +91,7 @@ def _read_control_token():
 
 def _start():
     if STATE_FILE.exists():
-        previous = _read_state(allow_expired=True)
+        previous = _read_state()
         try:
             status = session_status(previous["session_id"], previous["agent_token"])
         except BridgeError as exc:
@@ -112,7 +105,6 @@ def _start():
     state = {
         "session_id": session["session_id"],
         "agent_token": session["agent_token"],
-        "expires_at": session["expires_at"],
     }
     try:
         _save_state(state)
@@ -124,7 +116,8 @@ def _start():
         raise BridgeError("Could not safely store the temporary session token") from exc
     print("Pairing code: {}".format(session["pairing_code"]))
     print("Enter this one-time code in Start_Browser_Test.bat on the computer running CAT.")
-    print("The session expires in {} minutes.".format(max(1, int(session.get("expires_in_seconds", 900) / 60))))
+    print("The pairing code is valid for {} minutes.".format(max(1, int(session.get("expires_in_seconds", 900) / 60))))
+    print("The paired session has no fixed time limit while the local bridge stays connected. If the relay restarts or the heartbeat is lost, reconnect with a new code.")
     return 0
 
 
@@ -133,7 +126,7 @@ def _status():
     status = session_status(state["session_id"], state["agent_token"])
     visible = {
         key: status[key]
-        for key in ("active", "paired", "project_url", "expires_at", "actions_used", "actions_remaining")
+        for key in ("active", "paired", "project_url", "lease_expires_at", "actions_used", "actions_remaining", "actions_limit_per_minute")
         if key in status
     }
     print(json.dumps(visible, ensure_ascii=False, indent=2))
@@ -157,7 +150,7 @@ def _action(action):
 
 
 def _stop():
-    state = _read_state(allow_expired=True)
+    state = _read_state()
     try:
         stop_session(state["session_id"], state["agent_token"])
     except BridgeError as exc:

@@ -1,6 +1,7 @@
 import json
 import os
 import threading
+import time
 import urllib.error
 import urllib.request
 from http.server import ThreadingHTTPServer
@@ -273,6 +274,8 @@ def test_session_requires_pairing_and_bearer_auth(relay_url):
     assert status == 200
     assert state["paired"] is True
     assert state["origin"] == "http://127.0.0.1:7860"
+    assert "lease_expires_at" in state
+    assert "expires_at" not in state
     status, _ = _http(
         relay_url,
         "/v1/sessions/{}".format(session["session_id"]),
@@ -344,9 +347,10 @@ def test_action_round_trip_returns_only_matching_browser_result(relay_url):
     assert action_result["response"] == (200, {"ok": True, "text": "CAT ready"})
 
 
-def test_pairing_rate_limit_and_action_limit_constants_are_bounded(relay_url):
+def test_pairing_rate_limit_and_action_rate_limits_are_bounded(relay_url):
     assert relay.TTL_SECONDS <= 900
-    assert relay.MAX_ACTIONS <= 100
+    assert relay.CLIENT_LEASE_SECONDS <= 300
+    assert relay.MAX_ACTIONS_PER_MINUTE <= 60
     codes = []
     for _ in range(relay.CREATE_LIMIT_PER_ADDRESS):
         status, created = _http(
@@ -367,6 +371,65 @@ def test_pairing_rate_limit_and_action_limit_constants_are_bounded(relay_url):
     )
     assert status == 429
     assert len(set(codes)) == len(codes)
+
+
+def test_client_poll_renews_lease_without_a_fixed_session_deadline(relay_url, monkeypatch):
+    monkeypatch.setattr(relay, "LONG_POLL_SECONDS", 0)
+    session, paired = _create_and_pair(relay_url)
+    state = relay.SESSIONS[session["session_id"]]
+    initial_expiry = state.expires_at
+
+    status, result = _http(
+        relay_url,
+        "/v1/sessions/{}/next".format(session["session_id"]),
+        token=paired["client_token"],
+    )
+
+    assert status == 200
+    assert result == {"command": None, "stop": False}
+    assert state.expires_at > initial_expiry
+    assert state.expires_at <= time.time() + relay.CLIENT_LEASE_SECONDS
+
+
+def test_session_expires_if_client_heartbeat_stops(relay_url):
+    session, _ = _create_and_pair(relay_url)
+    state = relay.SESSIONS[session["session_id"]]
+
+    with relay.STATE_LOCK:
+        relay._prune_locked(state.expires_at + 1)
+
+    assert not state.active
+    assert session["session_id"] not in relay.SESSIONS
+
+
+def test_action_rate_limit_slides_and_does_not_end_session(relay_url, monkeypatch):
+    monkeypatch.setattr(relay, "MAX_ACTIONS_PER_MINUTE", 1)
+    session, _ = _create_and_pair(relay_url)
+    state = relay.SESSIONS[session["session_id"]]
+
+    assert relay._take_action_slot(state, 1000)
+    assert not relay._take_action_slot(state, 1030)
+    assert state.active
+    assert relay._take_action_slot(state, 1061)
+    assert state.active
+
+
+def test_action_rate_limit_returns_429_without_stopping_browser(relay_url, monkeypatch):
+    monkeypatch.setattr(relay, "MAX_ACTIONS_PER_MINUTE", 0)
+    session, _ = _create_and_pair(relay_url)
+
+    status, result = _http(
+        relay_url,
+        "/v1/sessions/{}/actions".format(session["session_id"]),
+        method="POST",
+        token=session["agent_token"],
+        body={"action": {"type": "snapshot"}},
+    )
+
+    assert status == 429
+    assert "per minute" in result["error"]
+    assert relay.SESSIONS[session["session_id"]].active
+
 
 def test_timed_out_action_closes_session_and_drops_pending_command(relay_url, monkeypatch):
     monkeypatch.setattr(relay, "ACTION_TIMEOUT_SECONDS", 0.05)

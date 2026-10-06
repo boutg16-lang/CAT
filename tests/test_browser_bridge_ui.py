@@ -34,3 +34,5 @@ def test_wrapping_is_applied_to_supported_label_not_checkbutton():
     assert "wraplength" not in ttk.checkbutton.options
     assert ttk.label.options["wraplength"] == 545
     assert "screenshots" in ttk.label.options["text"]
+    assert "Stop" in ttk.label.options["text"]
+    assert "15-minute" not in ttk.checkbutton.options["text"]

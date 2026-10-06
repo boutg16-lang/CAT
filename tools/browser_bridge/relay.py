@@ -21,8 +21,10 @@ from tools.browser_bridge.policy import (
 
 LOGGER = logging.getLogger("cat.browser_bridge")
 TTL_SECONDS = 900
+CLIENT_LEASE_SECONDS = 120
+ACTION_WINDOW_SECONDS = 60
 MAX_SESSIONS = 64
-MAX_ACTIONS = 100
+MAX_ACTIONS_PER_MINUTE = 30
 MAX_PENDING_ACTIONS = 1
 MAX_BODY_BYTES = 3_000_000
 LONG_POLL_SECONDS = 20
@@ -47,6 +49,7 @@ class Session:
         self.active = True
         self.ended_at = None
         self.action_count = 0
+        self.action_times = deque()
         self.pending = deque()
         self.in_flight = None
         self.results = {}
@@ -100,16 +103,36 @@ def _prune_locked(now=None):
 
 
 def _public_status(session):
+    now = time.time()
+    actions_in_window = sum(timestamp > now - ACTION_WINDOW_SECONDS for timestamp in session.action_times)
     return {
         "session_id": session.session_id,
         "paired": session.client_token_hash is not None,
         "active": session.active,
         "project_url": session.project_url,
         "origin": session.origin,
-        "expires_at": int(session.expires_at),
+        "lease_expires_at": int(session.expires_at),
         "actions_used": session.action_count,
-        "actions_remaining": max(0, MAX_ACTIONS - session.action_count),
+        "actions_remaining": max(0, MAX_ACTIONS_PER_MINUTE - actions_in_window),
+        "actions_limit_per_minute": MAX_ACTIONS_PER_MINUTE,
     }
+
+
+def _renew_client_lease(session, now=None):
+    if session.active and session.client_token_hash is not None:
+        session.expires_at = (time.time() if now is None else now) + CLIENT_LEASE_SECONDS
+
+
+def _take_action_slot(session, now=None):
+    now = time.time() if now is None else now
+    cutoff = now - ACTION_WINDOW_SECONDS
+    while session.action_times and session.action_times[0] <= cutoff:
+        session.action_times.popleft()
+    if len(session.action_times) >= MAX_ACTIONS_PER_MINUTE:
+        return False
+    session.action_times.append(now)
+    session.action_count += 1
+    return True
 
 
 
@@ -139,6 +162,8 @@ class RelayHandler(BaseHTTPRequestHandler):
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Cache-Control", "no-store")
         self.send_header("X-Content-Type-Options", "nosniff")
+        if self.close_connection:
+            self.send_header("Connection", "close")
         self.end_headers()
         self.wfile.write(body)
 
@@ -154,6 +179,33 @@ class RelayHandler(BaseHTTPRequestHandler):
         if not isinstance(value, dict):
             raise ValueError("JSON body must be an object")
         return value
+
+    def _discard_rejected_body(self):
+        raw_length = self.headers.get("Content-Length")
+        if raw_length is None:
+            return
+        try:
+            length = int(raw_length)
+        except ValueError:
+            self.close_connection = True
+            return
+        if length < 0 or length > 64 * 1024:
+            self.close_connection = True
+            return
+        previous_timeout = self.connection.gettimeout()
+        try:
+            self.connection.settimeout(2)
+            remaining = length
+            while remaining:
+                chunk = self.rfile.read(min(remaining, 8192))
+                if not chunk:
+                    self.close_connection = True
+                    return
+                remaining -= len(chunk)
+        except OSError:
+            self.close_connection = True
+        finally:
+            self.connection.settimeout(previous_timeout)
 
     def _path_parts(self):
         parsed = urlsplit(self.path)
@@ -199,8 +251,10 @@ class RelayHandler(BaseHTTPRequestHandler):
                 self._require_auth(session, "client")
                 deadline = time.monotonic() + LONG_POLL_SECONDS
                 with session.condition:
+                    _renew_client_lease(session)
                     while session.active and not session.pending and time.monotonic() < deadline:
                         session.condition.wait(timeout=max(0, deadline - time.monotonic()))
+                    _renew_client_lease(session)
                     if not session.active:
                         self._send(200, {"command": None, "stop": True})
                     elif session.pending:
@@ -253,10 +307,12 @@ class RelayHandler(BaseHTTPRequestHandler):
     def _require_control(self):
         expected = _configured_control_token()
         if expected is None:
+            self._discard_rejected_body()
             self._send(503, {"error": "Bridge control authentication is unavailable"})
             return False
         scheme, separator, supplied = self.headers.get("Authorization", "").partition(" ")
         if scheme.lower() != "bearer" or not separator or not hmac.compare_digest(supplied, expected):
+            self._discard_rejected_body()
             self._send(401, {"error": "Unauthorized"})
             return False
         return True
@@ -324,12 +380,13 @@ class RelayHandler(BaseHTTPRequestHandler):
             session.client_token_hash = _digest(client_token)
             session.project_url = project_url
             session.origin = project_origin(project_url)
+            _renew_client_lease(session, now)
         self._send(200, {
             "session_id": session.session_id,
             "client_token": client_token,
             "project_url": session.project_url,
             "origin": session.origin,
-            "expires_at": int(session.expires_at),
+            "lease_expires_at": int(session.expires_at),
         })
 
     def _run_action(self, session_id):
@@ -344,15 +401,12 @@ class RelayHandler(BaseHTTPRequestHandler):
         with session.condition:
             if not session.active or session.client_token_hash is None:
                 raise PermissionError("Local browser is not connected")
-            if session.action_count >= MAX_ACTIONS:
-                session.active = False
-                session.ended_at = time.time()
-                session.condition.notify_all()
-                raise PermissionError("Session action limit reached")
             if session.in_flight is not None or session.pending:
                 self._send(409, {"error": "Another browser action is still in progress"})
                 return
-            session.action_count += 1
+            if not _take_action_slot(session):
+                self._send(429, {"error": "Browser action rate limit reached; wait before retrying (limit is per minute)"})
+                return
             session.pending.append({"command_id": command_id, "action": action})
             session.condition.notify_all()
             while session.active and command_id not in session.results and time.monotonic() < deadline:
@@ -382,6 +436,7 @@ class RelayHandler(BaseHTTPRequestHandler):
         with session.condition:
             if not session.active or session.in_flight != command_id:
                 raise KeyError("No matching browser action")
+            _renew_client_lease(session)
             session.results[command_id] = result
             session.condition.notify_all()
         self._send(200, {"accepted": True})
