@@ -11,14 +11,18 @@ def _patch_state(monkeypatch, tmp_path):
     monkeypatch.setattr(zo_client, "STATE_DIR", tmp_path / "state")
     monkeypatch.setattr(zo_client, "STATE_FILE", tmp_path / "state" / "session.json")
     monkeypatch.setattr(zo_client, "SCREENSHOT_FILE", tmp_path / "state" / "latest.jpg")
+    monkeypatch.setattr(zo_client, "CONTROL_TOKEN_FILE", tmp_path / "state" / "control.token")
 
 
 def test_start_shows_pairing_code_but_never_agent_token(monkeypatch, tmp_path, capsys):
     _patch_state(monkeypatch, tmp_path)
+    (tmp_path / "state").mkdir(mode=0o700)
+    (tmp_path / "state" / "control.token").write_text("x" * 48, encoding="ascii")
+    (tmp_path / "state" / "control.token").chmod(0o600)
     monkeypatch.setattr(
         zo_client,
         "create_session",
-        lambda: {
+        lambda control_token: {
             "session_id": "test-session",
             "agent_token": "private-agent-token-value",
             "pairing_code": "ABCD-EFGH",

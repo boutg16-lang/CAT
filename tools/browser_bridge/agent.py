@@ -67,8 +67,16 @@ def request(relay_url, path, method="GET", token=None, body=None, timeout=35):
     return payload
 
 
-def create_session(relay_url=DEFAULT_RELAY_URL):
-    return request(relay_url, "/v1/sessions", method="POST", body={})
+def create_session(relay_url=DEFAULT_RELAY_URL, control_token=None):
+    if not isinstance(control_token, str) or len(control_token) < 40:
+        raise BridgeError("The bridge control credential is missing")
+    return request(
+        relay_url,
+        "/v1/sessions",
+        method="POST",
+        token=control_token,
+        body={},
+    )
 
 
 def session_status(session_id, token, relay_url=DEFAULT_RELAY_URL):
@@ -105,7 +113,8 @@ def main():
     args = parser.parse_args()
     try:
         if args.command == "create":
-            result = create_session(args.relay_url)
+            control_token = os.environ.get("CAT_BROWSER_BRIDGE_CONTROL_TOKEN", "")
+            result = create_session(args.relay_url, control_token)
         else:
             session_id = args.session_id
             token = os.environ.get("CAT_BROWSER_AGENT_TOKEN", "")

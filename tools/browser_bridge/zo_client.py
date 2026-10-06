@@ -14,12 +14,14 @@ from tools.browser_bridge.agent import (
     session_status,
     stop_session,
 )
+from tools.browser_bridge.credentials import CredentialError, read_control_token
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 STATE_DIR = PROJECT_ROOT / ".browser-bridge-state"
 STATE_FILE = STATE_DIR / "session.json"
 SCREENSHOT_FILE = STATE_DIR / "latest.jpg"
+CONTROL_TOKEN_FILE = STATE_DIR / "control.token"
 
 
 def _ensure_state_dir():
@@ -78,11 +80,20 @@ def _read_state(allow_expired=False):
 
 
 def _remove_state():
+    if STATE_DIR.is_symlink():
+        raise BridgeError("The browser bridge state directory cannot be a symbolic link")
     for path in (STATE_FILE, SCREENSHOT_FILE):
         try:
             path.unlink()
         except FileNotFoundError:
             pass
+
+
+def _read_control_token():
+    try:
+        return read_control_token(CONTROL_TOKEN_FILE)
+    except CredentialError as exc:
+        raise BridgeError(str(exc)) from exc
 
 
 def _start():
@@ -97,7 +108,7 @@ def _start():
             if status.get("active"):
                 raise BridgeError("A browser session is already active; use status or stop first.")
         _remove_state()
-    session = create_session()
+    session = create_session(control_token=_read_control_token())
     state = {
         "session_id": session["session_id"],
         "agent_token": session["agent_token"],

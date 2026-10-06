@@ -1,4 +1,5 @@
 import json
+import os
 import threading
 import urllib.error
 import urllib.request
@@ -6,7 +7,7 @@ from http.server import ThreadingHTTPServer
 
 import pytest
 
-from tools.browser_bridge import client, policy, relay
+from tools.browser_bridge import client, credentials, policy, relay
 
 
 def _http(relay_url, path, method="GET", token=None, body=None, timeout=35):
@@ -25,8 +26,15 @@ def _http(relay_url, path, method="GET", token=None, body=None, timeout=35):
         return exc.code, json.loads(exc.read().decode("utf-8"))
 
 
+CONTROL_TOKEN = "test-control-token-0123456789abcdef0123456789abcdef"
+
+
 @pytest.fixture
-def relay_url():
+def relay_url(tmp_path, monkeypatch):
+    token_file = tmp_path / "control.token"
+    token_file.write_text(CONTROL_TOKEN, encoding="ascii")
+    token_file.chmod(0o600)
+    monkeypatch.setenv(relay.CONTROL_TOKEN_FILE_ENV, str(token_file))
     with relay.STATE_LOCK:
         relay.SESSIONS.clear()
         relay.CREATE_REQUESTS.clear()
@@ -46,7 +54,13 @@ def relay_url():
 
 
 def _create_and_pair(relay_url):
-    status, session = _http(relay_url, "/v1/sessions", method="POST", body={})
+    status, session = _http(
+        relay_url,
+        "/v1/sessions",
+        method="POST",
+        token=CONTROL_TOKEN,
+        body={},
+    )
     assert status == 201
     status, paired = _http(
         relay_url,
@@ -56,6 +70,66 @@ def _create_and_pair(relay_url):
     )
     assert status == 200
     return session, paired
+
+
+def test_session_creation_requires_control_token(relay_url):
+    status, _ = _http(relay_url, "/v1/sessions", method="POST", body={})
+    assert status == 401
+    status, _ = _http(
+        relay_url,
+        "/v1/sessions",
+        method="POST",
+        token="wrong-control-token",
+        body={},
+    )
+    assert status == 401
+    status, created = _http(
+        relay_url,
+        "/v1/sessions",
+        method="POST",
+        token=CONTROL_TOKEN,
+        body={},
+    )
+    assert status == 201
+    assert created["session_id"]
+
+
+def test_relay_fails_closed_when_control_token_is_not_configured(relay_url, monkeypatch):
+    monkeypatch.delenv(relay.CONTROL_TOKEN_FILE_ENV)
+    status, _ = _http(
+        relay_url,
+        "/v1/sessions",
+        method="POST",
+        token=CONTROL_TOKEN,
+        body={},
+    )
+    assert status == 503
+
+
+def test_control_token_file_must_be_private_and_valid(tmp_path):
+    path = tmp_path / "control.token"
+    path.write_text(CONTROL_TOKEN, encoding="ascii")
+    path.chmod(0o600)
+    assert credentials.read_control_token(path) == CONTROL_TOKEN
+    with pytest.raises(credentials.CredentialError, match="not configured"):
+        credentials.read_control_token(None)
+    if os.name == "posix":
+        path.chmod(0o644)
+        with pytest.raises(credentials.CredentialError, match="permissions"):
+            credentials.read_control_token(path)
+
+
+def test_session_creation_fails_closed_without_control_file(relay_url, monkeypatch):
+    monkeypatch.delenv(relay.CONTROL_TOKEN_FILE_ENV, raising=False)
+    status, result = _http(
+        relay_url,
+        "/v1/sessions",
+        method="POST",
+        token=CONTROL_TOKEN,
+        body={},
+    )
+    assert status == 503
+    assert "authentication is unavailable" in result["error"]
 
 
 def test_agent_relay_url_is_pinned_to_the_owner_service():
@@ -216,7 +290,13 @@ def test_session_requires_pairing_and_bearer_auth(relay_url):
 
 
 def test_pairing_code_does_not_accept_remote_project_url(relay_url):
-    status, session = _http(relay_url, "/v1/sessions", method="POST", body={})
+    status, session = _http(
+        relay_url,
+        "/v1/sessions",
+        method="POST",
+        token=CONTROL_TOKEN,
+        body={},
+    )
     assert status == 201
     status, _ = _http(
         relay_url,
@@ -269,10 +349,22 @@ def test_pairing_rate_limit_and_action_limit_constants_are_bounded(relay_url):
     assert relay.MAX_ACTIONS <= 100
     codes = []
     for _ in range(relay.CREATE_LIMIT_PER_ADDRESS):
-        status, created = _http(relay_url, "/v1/sessions", method="POST", body={})
+        status, created = _http(
+            relay_url,
+            "/v1/sessions",
+            method="POST",
+            token=CONTROL_TOKEN,
+            body={},
+        )
         assert status == 201
         codes.append(created["pairing_code"])
-    status, _ = _http(relay_url, "/v1/sessions", method="POST", body={})
+    status, _ = _http(
+        relay_url,
+        "/v1/sessions",
+        method="POST",
+        token=CONTROL_TOKEN,
+        body={},
+    )
     assert status == 429
     assert len(set(codes)) == len(codes)
 

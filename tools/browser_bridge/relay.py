@@ -11,6 +11,7 @@ from collections import deque
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlsplit
 
+from tools.browser_bridge.credentials import CredentialError, read_control_token
 from tools.browser_bridge.policy import (
     project_origin,
     validate_action,
@@ -29,6 +30,8 @@ ACTION_TIMEOUT_SECONDS = 30
 CREATE_WINDOW_SECONDS = 60
 CREATE_LIMIT_PER_ADDRESS = 5
 PAIR_LIMIT_PER_ADDRESS = 20
+CONTROL_TOKEN_FILE_ENV = "CAT_BROWSER_BRIDGE_CONTROL_TOKEN_FILE"
+
 
 
 class Session:
@@ -107,6 +110,20 @@ def _public_status(session):
         "actions_used": session.action_count,
         "actions_remaining": max(0, MAX_ACTIONS - session.action_count),
     }
+
+
+
+
+
+
+
+
+
+def _configured_control_token():
+    try:
+        return read_control_token(os.environ.get(CONTROL_TOKEN_FILE_ENV))
+    except CredentialError:
+        return None
 
 
 class RelayHandler(BaseHTTPRequestHandler):
@@ -233,7 +250,21 @@ class RelayHandler(BaseHTTPRequestHandler):
             LOGGER.exception("request_failed method=POST")
             self._send(500, {"error": "Internal server error"})
 
+    def _require_control(self):
+        expected = _configured_control_token()
+        if expected is None:
+            self._send(503, {"error": "Bridge control authentication is unavailable"})
+            return False
+        scheme, separator, supplied = self.headers.get("Authorization", "").partition(" ")
+        if scheme.lower() != "bearer" or not separator or not hmac.compare_digest(supplied, expected):
+            self._send(401, {"error": "Unauthorized"})
+            return False
+        return True
+
     def _create_session(self):
+        if not self._require_control():
+            return
+
         body = self._read_json()
         if body:
             raise ValueError("Session creation does not accept options")
