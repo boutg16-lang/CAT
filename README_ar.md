@@ -63,6 +63,8 @@ $env:VIRALCUTTER_LANG="en_US"; python webui/app.py
 
 اللغات المتاحة: `ar_SA` (العربية)، `en_US` (الإنجليزية)، `pt_BR` (البرتغالية)، `tr_TR` (التركية).
 
+> **اختبار الواجهة محلياً:** راجع [`docs/browser-bridge.md`](docs/browser-bridge.md) لتشغيل جلسة موافقة في Chromium معزول على جهازك.
+
 ## مركز التحكم عبر Telegram
 
 يمكن تفعيل مركز Telegram اختيارياً للتحكم في **طابور المعالجة المحلي** أثناء بقاء OUSSAMA Cutter مفتوحاً. يعمل الاتصال من Windows عبر long polling دون webhook أو منفذ عام، وتبقى الفيديوهات وملفات `VIRALS` وOAuth على الجهاز. لا يقبل البوت Bot Token أو `client_secrets.json` أو ملفات أو أوامر shell، ولا ينفذ `/upload` أو `/publish`.

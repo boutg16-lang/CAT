@@ -59,6 +59,8 @@ Forget expensive subscriptions and minute limits. OUSSAMA Cutter offers unlimite
 ![WebUi Library](https://github.com/user-attachments/assets/b0204e4b-0e5d-4ee4-b7b4-cac044b76c24)
 *Library: OpusClip-style gallery and intuitive controls*
 
+> **Local browser testing:** see [`docs/browser-bridge.md`](docs/browser-bridge.md) for a consent-based test session in an isolated Chromium profile on your computer.
+
 ## Local Installation (Super Fast ⚡)
 
 ### Prerequisites (From Scratch Setup)
