@@ -1,8 +1,9 @@
 import argparse
 import base64
+import http.client
+import json
 import os
 import queue
-import socket
 import threading
 import time
 from urllib.parse import urlsplit
@@ -29,22 +30,75 @@ from tools.browser_bridge.policy import (
 _t = I18nAuto(DEFAULT_LANGUAGE)
 
 DEFAULT_PROJECT_URL = "http://127.0.0.1:7860"
+WEBUI_PORT_START = 7860
+WEBUI_PORT_COUNT = 20
 MAX_PAGE_TEXT = 16000
 MAX_CONTROLS = 100
+
+
+def _local_get(host, port, path, timeout):
+    connection = http.client.HTTPConnection(host, port, timeout=timeout)
+    try:
+        connection.request(
+            "GET",
+            path,
+            headers={"Accept": "application/json,text/html", "Connection": "close"},
+        )
+        response = connection.getresponse()
+        return response.status, response.read(65536)
+    finally:
+        connection.close()
+
+
+def _cat_health_matches(host, port, timeout):
+    from tools.browser_bridge.health import HEALTH_PATH, HEALTH_SERVICE
+
+    status, body = _local_get(host, port, HEALTH_PATH, timeout)
+    if status == 200:
+        try:
+            payload = json.loads(body.decode("utf-8"))
+        except (UnicodeDecodeError, json.JSONDecodeError):
+            payload = {}
+        if payload.get("service") == HEALTH_SERVICE and payload.get("ok") is True:
+            return True
+    status, body = _local_get(host, port, "/", timeout)
+    if status != 200:
+        return False
+    title = body.decode("utf-8", "replace").lower()
+    return "<title>oussama cutter</title>" in title
+
+
+def _project_url_with_port(parsed, port, host=None):
+    host = host or parsed.hostname or ""
+    if ":" in host and not host.startswith("["):
+        host = "[{}]".format(host)
+    return "{}://{}:{}".format(parsed.scheme, host, port)
 
 
 def probe_project_url(project_url, timeout=2.0):
     normalized_url = validate_project_url(project_url)
     parsed = urlsplit(normalized_url)
-    try:
-        with socket.create_connection((parsed.hostname, parsed.port), timeout=timeout):
-            return normalized_url
-    except OSError as exc:
-        reason = exc.strerror or str(exc) or type(exc).__name__
-        message = _t(
-            "The CAT page at {url} is unreachable ({reason}). Start OUSSAMA Cutter, wait for its WebUI, then use the exact local URL shown in your browser."
-        ).format(url=normalized_url, reason=reason[:160])
-        raise BridgeError("{} {}".format(message, _t("The pairing code has not been used."))) from exc
+    requested_port = parsed.port or (443 if parsed.scheme == "https" else 80)
+    candidates = [requested_port]
+    scan_end = WEBUI_PORT_START + WEBUI_PORT_COUNT
+    if WEBUI_PORT_START <= requested_port < scan_end:
+        candidates.extend(port for port in range(WEBUI_PORT_START, scan_end) if port != requested_port)
+    hosts = [parsed.hostname]
+    if parsed.hostname == "localhost":
+        hosts = ["127.0.0.1", "::1"]
+    last_reason = "CAT service marker or page title was not found"
+    for host in hosts:
+        for port in candidates:
+            port_timeout = min(timeout, 0.25)
+            try:
+                if _cat_health_matches(host, port, port_timeout):
+                    return _project_url_with_port(parsed, port, host)
+            except (OSError, http.client.HTTPException) as exc:
+                last_reason = exc.strerror or str(exc) or type(exc).__name__
+    message = _t(
+        "The CAT page at {url} is unreachable ({reason}). Start OUSSAMA Cutter, wait for its WebUI, then use the exact local URL shown in your browser."
+    ).format(url=normalized_url, reason=last_reason[:160])
+    raise BridgeError("{} {}".format(message, _t("The pairing code has not been used.")))
 
 CONSENT_NOTICE = "Only this isolated CAT tab is shared. Zo receives page text or screenshots only when it requests an inspection. The session stays active until you press Stop or close this window; it ends if the relay restarts or the heartbeat is lost for 2 minutes."
 
@@ -183,8 +237,8 @@ def run_browser_session(relay_url, pairing_code, project_url, events, stop_event
     browser = None
     try:
         relay_url = validate_relay_url(relay_url)
-        project_url = validate_project_url(project_url)
-        probe_project_url(project_url)
+        project_url = probe_project_url(validate_project_url(project_url))
+        events.put(("url", project_url))
         if stop_event.is_set():
             return
         try:
@@ -321,6 +375,7 @@ class BrowserBridgeWindow:
             self.status.set(str(exc))
             self.messagebox.showwarning(_t("Local page unavailable"), str(exc))
             return
+        self.url.set(project_url)
         self.status.set(_t("The local CAT page is reachable at {url}. You can pair now.").format(url=project_url))
 
     def start(self):
@@ -375,6 +430,9 @@ class BrowserBridgeWindow:
         try:
             while True:
                 kind, message = self.events.get_nowait()
+                if kind == "url":
+                    self.url.set(message)
+                    continue
                 self.status.set(message)
                 if kind == "paired":
                     self.code.set("")
