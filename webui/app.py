@@ -2176,7 +2176,7 @@ with gr.Blocks(**_blocks_kwargs) as demo:
                     checks = segments_review._rows_to_bool_list(df)
                 except Exception:
                     checks = []
-                for row_values, keep in zip(rows, checks):
+                for row_values, keep in zip(rows, checks, strict=False):
                     row_values[0] = bool(keep)
                 return rows, "✅ " + msg
 
@@ -3600,6 +3600,9 @@ def _launch(argv=None):
         from fastapi.responses import FileResponse
 
         def attach_extra_routes(fastapi_app):
+            from webui.browser_bridge_health import install_health_route
+
+            install_health_route(fastapi_app)
             fastapi_app.mount("/virals", StaticFiles(directory=VIRALS_DIR), name="virals")
             @fastapi_app.get("/export_xml_api")
             def export_xml_api(project: str, segment: int, background_tasks: BackgroundTasks, format: str = "premiere"):

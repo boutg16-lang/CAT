@@ -1,11 +1,10 @@
 # OUSSAMA Cutter
 [![CI](https://github.com/boutg16-lang/CAT/actions/workflows/ci.yml/badge.svg)](https://github.com/boutg16-lang/CAT/actions/workflows/ci.yml)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
-[![Tests](https://img.shields.io/badge/tests-1238%20passed-brightgreen)](tests/)
 [![Discord](https://dcbadge.limes.pink/api/server/tAdPHFAbud)](https://discord.gg/tAdPHFAbud)<br>
 
-**OUSSAMA Cutter — alternativa open-source 100% gratuita, local e ilimitada ao Opus Clip**
-Transforme vídeos longos do YouTube em shorts virais otimizados para TikTok, Instagram Reels e YouTube Shorts – com IA de ponta, legendas dinâmicas, *face tracking* preciso e tradução automática. Tudo rodando na sua máquina.
+**OUSSAMA Cutter — alternativa open-source gratuita ao Opus Clip, com processamento local e recursos online quando escolhidos.**
+Transforme vídeos longos do YouTube em shorts virais otimizados para TikTok, Instagram Reels e YouTube Shorts – com IA de ponta, legendas dinâmicas, *face tracking* preciso e tradução automática. O processamento de mídia ocorre localmente; recursos online podem enviar os dados necessários ao serviço selecionado.
 
 [![Stars](https://img.shields.io/github/stars/boutg16-lang/CAT?style=social)](https://github.com/boutg16-lang/CAT/stargazers)
 [![Forks](https://img.shields.io/github/forks/boutg16-lang/CAT?style=social)](https://github.com/boutg16-lang/CAT/network/members)
@@ -27,19 +26,21 @@ Esqueça assinaturas caras e limites de minutos. OUSSAMA Cutter oferece poder il
 | Feature | OUSSAMA Cutter (Open-Source) | Opus Clip / Klap / Munch (SaaS) |
 | :--- | :--- | :--- |
 | **Preço** | **Gratuito e Ilimitado** | $20–$100/mês + limites de min. |
-| **Privacidade** | **100% Local** (Seus dados não saem do PC) | Upload para nuvem de terceiros |
+| **Privacidade** | **Local-first** (processamento local; serviços online transmitem os dados necessários) | Upload para nuvem de terceiros |
 | **IA & LLM** | **Flexível**: Gemini (Free), GPT-4, **Local GGUF (Offline)** | Apenas o que eles oferecem |
 | **Face Tracking** | **Split Screen (2 faces)**, Active Speaker (Exp.), Auto | Básico ou pago extra |
 | **Tradução** | **Sim** (Traduza legendas p/ 10+ línguas) | Recursos limitados |
 | **Edição** | **Exporta XML para Premiere Pro** (Beta) | Editor web limitado |
 | **Watermark** | **ZERO** | Sim (nos planos free) |
 
-**Resultados profissionais, privacidade total e custo zero.**
+**Resultados profissionais com processamento local e controle claro sobre recursos online.**
+
+Veja a [política de segurança e rede](SECURITY.md#network-and-data-flow) para saber quais dados podem ser enviados ao usar esses recursos.
 
 ## Funcionalidades Principais 🚀
 
 -   🤖 **Corte Viral com IA**: Identifica automaticamente os ganchos e momentos mais engajadores usando **Gemini**, **GPT-4** ou **LLMs Locais (Llama 3, DeepSeek, etc)**.
--   🛡️ **Filtro de Segurança Anti-Strike (Novo!)**: Bloqueia clipes com **discurso de ódio / incitação à violência** antes do corte — ou apenas **censura (bleep) as palavras violadoras** mantendo o clipe. Revisão contextual extra via IA (Gemini/G4F). 100% local, multilíngue (árabe + dialetos, EN, PT, FR, ES, TR), com relatório `safety_report.json` por projeto.
+-   🛡️ **Filtro de Segurança Anti-Strike (Novo!)**: Bloqueia clipes com **discurso de ódio / incitação à violência** antes do corte — ou apenas **censura (bleep) as palavras violadoras** mantendo o clipe. Revisão contextual extra via IA (Gemini/G4F). O filtro principal roda localmente; a revisão na nuvem, quando selecionada, envia título e transcrição ao provedor escolhido. Multilíngue (árabe + dialetos, EN, PT, FR, ES, TR), com relatório `safety_report.json` por projeto.
 -   🗣️ **Transcrição Resiliente**: O caminho **WhisperX** continua sendo o principal; o `faster-whisper` opcional funciona como fallback local quando Torch/WhisperX estão indisponíveis.
 -   🔊 **Audio QC**: Mede loudness, true peak e silêncio nos clipes renderizados com FFmpeg, grava `audio_qc_report.json` e bloqueia publicação real quando houver revisão necessária.
 -   🧪 **Quality Gates**: O benchmark determinístico valida vídeo, áudio, FPS e duração antes do merge; o export opcional OTIO permite trocar timelines com outras ferramentas.
@@ -59,6 +60,8 @@ Esqueça assinaturas caras e limites de minutos. OUSSAMA Cutter oferece poder il
 
 ![WebUi Library](https://github.com/user-attachments/assets/b0204e4b-0e5d-4ee4-b7b4-cac044b76c24)
 *Biblioteca: Galeria estilo OpusClip e controles intuitivos*
+
+> **Teste assistido da interface:** consulte [`docs/browser-bridge.md`](docs/browser-bridge.md) para testar a WebUI em um Chromium isolado no seu computador.
 
 ## Instalação Local (Super Rápida ⚡)
 
@@ -164,5 +167,5 @@ O ViralCutter é mantido pela comunidade. Junte-se a nós para democratizar a cr
 - ✅ **Instalação reproduzível**: `uv sync` (usa `uv.lock`); o fluxo clássico `install_dependencies.bat` continua igual.
 
 
-**Versão Atual**: 7.51.0-pro — dublagem na interface (aba Publicar) com consentimento explícito de rede, e canal de atualização assinado
+**Versão Atual**: 7.52.0-pro — endurecimento de segurança (gates fail-closed, tokens OAuth 0600), CI de menor privilégio e testes de QA
 *ViralCutter: Porque clips virais não precisam custar uma fortuna.* 🚀

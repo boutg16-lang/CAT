@@ -775,7 +775,7 @@ def _apply_voice_face_link(faces, speech_link, seconds, boost=2.0, penalty=0.75)
     winner, confidence = speech_link.current_speaker_face(seconds, keys)
     if winner is None or confidence <= 0:
         return
-    for key, face in zip(keys, faces):
+    for key, face in zip(keys, faces, strict=False):
         current = float(face.get('activity_score', 0.0) or 0.0)
         if key == winner:
             face['activity_score'] = max(0.0, min(20.0, current + boost))
@@ -1004,7 +1004,7 @@ def generate_short_insightface(input_file, output_file, index, project_folder, f
             if focus_active_speaker and faces:
                 activity_track_ids = face_tracker.update(
                     frame_index, [f['bbox'] for f in faces])
-                for face, track_id in zip(faces, activity_track_ids):
+                for face, track_id in zip(faces, activity_track_ids, strict=False):
                     face['_track_id'] = track_id
             if faces:
                 # 1. Update activity scores for current faces
@@ -1343,7 +1343,7 @@ def generate_short_insightface(input_file, output_file, index, project_folder, f
             # on stale faces — re-apply it here, otherwise the crop silently
             # jumps to an arbitrary person on recovery frames.
             if faces:
-                for face, track_id in zip(faces, track_ids):
+                for face, track_id in zip(faces, track_ids, strict=False):
                     face['_track_id'] = track_id
             if faces_from_lookahead and focus_active_speaker and faces and len(faces) >= 2:
                 faces, speaker_switched = order_faces_for_crop(

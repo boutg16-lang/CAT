@@ -17,6 +17,7 @@
     "\nExisting viral segments found: {}": "\nExisting viral segments found: {}",
     "Use existing viral segments? (yes/no) [default: yes]: ": "Use existing viral segments? (yes/no) [default: yes]: ",
     "Loaded existing viral segments. Skipping configuration prompts.": "Loaded existing viral segments. Skipping configuration prompts.",
+    "Saved clip choices are incomplete or outdated; regenerating with the current selection rules.": "Saved clip choices are incomplete or outdated; regenerating with the current selection rules.",
     "Error loading JSON: {}.": "Error loading JSON: {}.",
     "\nCurrent duration settings: {}s - {}s": "\nCurrent duration settings: {}s - {}s",
     "Change duration? (y/n) [default: n]: ": "Change duration? (y/n) [default: n]: ",
@@ -670,5 +671,12 @@
     "No viral segments file for this project.": "No viral segments file for this project.",
     "Title saved: {}": "Title saved: {}",
     "Learn Which Face Speaks (Voice Link)": "Learn Which Face Speaks (Voice Link)",
-    "v7.36: learns which face owns the active speaker from the clip audio (speech turns + mouth activity, pyannote optional) and biases the camera toward it. Requires Focus on Active Speaker.": "v7.36: learns which face owns the active speaker from the clip audio (speech turns + mouth activity, pyannote optional) and biases the camera toward it. Requires Focus on Active Speaker."
+    "v7.36: learns which face owns the active speaker from the clip audio (speech turns + mouth activity, pyannote optional) and biases the camera toward it. Requires Focus on Active Speaker.": "v7.36: learns which face owns the active speaker from the clip audio (speech turns + mouth activity, pyannote optional) and biases the camera toward it. Requires Focus on Active Speaker.",
+    "Check local URL": "Check local URL",
+    "Check the local URL before pairing. A failed check will not use the pairing code.": "Check the local URL before pairing. A failed check will not use the pairing code.",
+    "The local CAT page is reachable at {url}. You can pair now.": "The local CAT page is reachable at {url}. You can pair now.",
+    "The CAT page at {url} is unreachable ({reason}). Start OUSSAMA Cutter, wait for its WebUI, then use the exact local URL shown in your browser.": "The CAT page at {url} is unreachable ({reason}). Start OUSSAMA Cutter, wait for its WebUI, then use the exact local URL shown in your browser.",
+    "The pairing code has not been used.": "The pairing code has not been used.",
+    "Local page unavailable": "Local page unavailable",
+    "Checking the local CAT page before pairing…": "Checking the local CAT page before pairing…"
 }

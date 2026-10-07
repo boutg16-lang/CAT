@@ -68,3 +68,14 @@ def test_readme_current_version_lines_match_app_version():
             f"{filename} advertises a stale version: {line.strip()!r} "
             f"(expected it to contain {core})"
         )
+
+
+def test_windows_installer_version_matches_app_version():
+    text = (ROOT / "packaging" / "installer.iss").read_text(encoding="utf-8")
+    match = re.search(
+        r'^\s*#define\s+MyAppVersion\s+"([^"]+)"',
+        text,
+        flags=re.MULTILINE,
+    )
+    assert match, "packaging/installer.iss is missing its default MyAppVersion"
+    assert _core(app_version.__version__) == _core(match.group(1))

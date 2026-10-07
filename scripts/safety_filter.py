@@ -799,8 +799,10 @@ def load_custom_terms(project_folder=None, extra_path=None):
     try:
         from scripts import policy_lexicon
         result["extra_terms"].extend(policy_lexicon.load_terms(project_folder, sync=True))
-    except Exception:
-        pass
+    except Exception as exc:
+        # Do not silently drop supplementary block terms: a broken lexicon must
+        # be visible so the operator can fix it.
+        print("[safety] policy lexicon unavailable, extra terms skipped: {}".format(exc))
     return result
 
 

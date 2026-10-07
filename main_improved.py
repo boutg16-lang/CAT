@@ -169,6 +169,29 @@ def _segment_settings_fingerprint(args):
                      separators=(",", ":"))
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()[:16]
 
+
+def _segment_cache_staleness_reason(data, video_path, project_folder, args):
+    source_fingerprint = (
+        create_viral_segments.source_video_fingerprint(video_path)
+        if video_path else None
+    )
+    config_fingerprint = _segment_settings_fingerprint(args)
+    transcript_fingerprint = None
+    try:
+        transcript = create_viral_segments.load_transcript(project_folder)
+        transcript_fingerprint = create_viral_segments.transcript_fingerprint(transcript)
+    except Exception as exc:
+        debug("Could not verify cached segment transcript: {}".format(exc))
+    return create_viral_segments.segment_cache_staleness_reason(
+        data, source_fingerprint, config_fingerprint, transcript_fingerprint)
+
+
+def _report_stale_segment_cache(reason):
+    print(i18n(
+        "Saved clip choices are incomplete or outdated; regenerating with the current selection rules."
+    ))
+    debug("Segment cache invalidated: {}".format(reason))
+
 def get_subtitle_config(config_path=None):
     """
     Returns the subtitle configuration dictionary.
@@ -778,6 +801,7 @@ def main():
         if os.path.exists(viral_segments_file):
             print(i18n("\nExisting viral segments found: {}").format(viral_segments_file))
             existing_count = None
+            existing_data = None
             try:
                 with open(viral_segments_file, 'r', encoding='utf-8') as existing_handle:
                     existing_data = json.load(existing_handle)
@@ -790,42 +814,18 @@ def main():
             elif requested_count_hint and existing_count and int(existing_count) != int(requested_count_hint):
                 use_existing_json = 'no'
                 print(i18n("Existing segments count ({}) differs from requested count ({}); generating fresh segments.").format(existing_count, requested_count_hint))
-            elif args.skip_prompts:
-                # v7.31/v7.32 staleness guards: reuse of saved segments is only
-                # safe when BOTH the input video AND the segment-generation
-                # settings are unchanged. A different video (size/mtime) or
-                # changed settings (count/min/max/chunk/language) means the old
-                # AI windows no longer match this run — force regeneration
-                # instead of silently cutting stale moments.
-                stored_fp = create_viral_segments.segments_source_fingerprint(existing_data)
-                current_fp = (create_viral_segments.source_video_fingerprint(input_video)
-                              if input_video else None)
-                stored_cfg = ((existing_data or {}).get("source_meta", {}) or {}).get("config_fp")
-                current_cfg = _segment_settings_fingerprint(args)
-                # v7.41: a changed transcript (re-transcription) invalidates the
-                # saved windows/titles too. Only compared when a transcript is
-                # actually available at this stage; otherwise the config/source
-                # fingerprints above remain authoritative.
-                stored_transcript = ((existing_data or {}).get("source_meta", {}) or {}).get("transcript_fp")
-                current_transcript = None
-                try:
-                    _existing_transcript = create_viral_segments.load_transcript(project_folder)
-                    current_transcript = create_viral_segments.transcript_fingerprint(_existing_transcript)
-                except Exception:
-                    current_transcript = None
-                if stored_fp and current_fp and stored_fp != current_fp:
-                    use_existing_json = 'no'
-                    print(i18n("Input video changed since these segments were generated; regenerating segments."))
-                elif stored_cfg and stored_cfg != current_cfg:
-                    use_existing_json = 'no'
-                    print(i18n("Segment settings changed since these segments were generated; regenerating segments."))
-                elif stored_transcript and current_transcript and stored_transcript != current_transcript:
-                    use_existing_json = 'no'
-                    print(i18n("Transcript changed since these segments were generated; regenerating segments."))
-                else:
-                    use_existing_json = 'yes'
             else:
-                use_existing_json = input(i18n("Use existing viral segments? (yes/no) [default: yes]: ")).strip().lower()
+                stale_reason = _segment_cache_staleness_reason(
+                    existing_data, input_video, project_folder, args)
+                if stale_reason:
+                    use_existing_json = 'no'
+                    _report_stale_segment_cache(stale_reason)
+                elif args.skip_prompts:
+                    use_existing_json = 'yes'
+                else:
+                    use_existing_json = input(
+                        i18n("Use existing viral segments? (yes/no) [default: yes]: ")
+                    ).strip().lower()
 
             if use_existing_json in ['', 'y', 'yes']:
                 try:
@@ -1237,20 +1237,25 @@ def main():
                         existing_data = None
                     if args.segments and existing_count and int(existing_count) != int(args.segments):
                         print(i18n("Existing segments count ({}) differs from requested count ({}); generating fresh segments.").format(existing_count, args.segments))
-                    elif args.skip_prompts:
-                        print(i18n("Skipping prompts enabled. Loading existing segments."))
-                        try:
-                            with open(viral_segments_file_late, 'r', encoding='utf-8') as f:
-                                viral_segments = json.load(f)
-                        except Exception as e:
-                            print(i18n("Error loading existing JSON: {}. Proceeding to create new segments.").format(e))
                     else:
-                        print(i18n("Loading existing viral segments found at {}").format(viral_segments_file_late))
-                        try:
-                            with open(viral_segments_file_late, 'r', encoding='utf-8') as f:
-                                viral_segments = json.load(f)
-                        except Exception as e:
-                            print(i18n("Error loading existing JSON: {}.").format(e))
+                        stale_reason = _segment_cache_staleness_reason(
+                            existing_data, input_video, project_folder, args)
+                        if stale_reason:
+                            _report_stale_segment_cache(stale_reason)
+                        elif args.skip_prompts:
+                            print(i18n("Skipping prompts enabled. Loading existing segments."))
+                            try:
+                                with open(viral_segments_file_late, 'r', encoding='utf-8') as f:
+                                    viral_segments = json.load(f)
+                            except Exception as e:
+                                print(i18n("Error loading existing JSON: {}. Proceeding to create new segments.").format(e))
+                        else:
+                            print(i18n("Loading existing viral segments found at {}").format(viral_segments_file_late))
+                            try:
+                                with open(viral_segments_file_late, 'r', encoding='utf-8') as f:
+                                    viral_segments = json.load(f)
+                            except Exception as e:
+                                print(i18n("Error loading existing JSON: {}.").format(e))
                     
                 if not viral_segments:
                     print(i18n("Creating viral segments using {}...").format(ai_backend.upper()))

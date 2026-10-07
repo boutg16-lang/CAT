@@ -268,6 +268,7 @@
     "Load Subtitles": "Altyazıları Yükle",
     "Load Template": "Şablon Yükle",
     "Loaded existing viral segments. Skipping configuration prompts.": "Mevcut viral segmentler yüklendi. Yapılandırma adımları atlanıyor.",
+    "Saved clip choices are incomplete or outdated; regenerating with the current selection rules.": "Kaydedilmiş klip seçimleri eksik veya güncel değil; mevcut seçim kurallarıyla yeniden oluşturulacak.",
     "Loaded subtitle config from {}": "Altyazı yapılandırması {} konumundan yüklendi",
     "Loaded {} segments.": "{} segment yüklendi.",
     "Loading existing viral segments found at {}": "{} konumunda bulunan mevcut viral segmentler yükleniyor",
@@ -670,5 +671,12 @@
     "🔒 YouTube login (cookies)": "🔒 YouTube girişi (çerezler)",
     "🗑 Remove": "🗑 Kaldır",
     "🚫 Block this word": "🚫 Bu kelimeyi engelle",
-    "🛡️ Safety filter (hate speech)": "🛡️ Güvenlik filtresi (nefret söylemi)"
+    "🛡️ Safety filter (hate speech)": "🛡️ Güvenlik filtresi (nefret söylemi)",
+    "Check local URL": "Yerel URL'yi kontrol et",
+    "Check the local URL before pairing. A failed check will not use the pairing code.": "Eşleştirmeden önce yerel URL'yi kontrol edin. Kontrol başarısız olursa eşleştirme kodu kullanılmaz.",
+    "The local CAT page is reachable at {url}. You can pair now.": "Yerel CAT sayfasına {url} adresinden erişilebiliyor. Şimdi eşleştirme yapabilirsiniz.",
+    "The CAT page at {url} is unreachable ({reason}). Start OUSSAMA Cutter, wait for its WebUI, then use the exact local URL shown in your browser.": "{url} adresindeki CAT sayfasına ulaşılamıyor ({reason}). OUSSAMA Cutter'ı başlatın, WebUI'nin açılmasını bekleyin ve tarayıcıda görünen tam yerel URL'yi kullanın.",
+    "The pairing code has not been used.": "Eşleştirme kodu kullanılmadı.",
+    "Local page unavailable": "Yerel sayfa kullanılamıyor",
+    "Checking the local CAT page before pairing…": "Eşleştirmeden önce yerel CAT sayfası kontrol ediliyor…"
 }

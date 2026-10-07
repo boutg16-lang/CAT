@@ -41,8 +41,8 @@ _ARABIC_ORTHOGRAPHY_TABLE.update(dict.fromkeys(range(0x064B, 0x0660)))
 
 # Arabic-Indic / Persian digits + Arabic decimal marks → ASCII.
 _ARABIC_NUM_TRANSLATION = str.maketrans({
-    **{ord(src): dst for src, dst in zip("٠١٢٣٤٥٦٧٨٩", "0123456789")},
-    **{ord(src): dst for src, dst in zip("۰۱۲۳۴۵۶۷۸۹", "0123456789")},
+    **{ord(src): dst for src, dst in zip("٠١٢٣٤٥٦٧٨٩", "0123456789", strict=False)},
+    **{ord(src): dst for src, dst in zip("۰۱۲۳۴۵۶۷۸۹", "0123456789", strict=False)},
     0x066B: ".",  # ٫ Arabic decimal separator
     0x066C: ".",  # ٬ Arabic thousands separator (used as decimal by LLMs)
 })

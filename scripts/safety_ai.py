@@ -213,7 +213,7 @@ def review_with_openai_moderation(clips, api_key, model_name=None, timeout=45):
     if not isinstance(results, list) or len(results) != len(clips):
         raise ValueError("OpenAI moderation returned an unexpected result count")
     verdicts = {}
-    for clip, result in zip(clips, results):
+    for clip, result in zip(clips, results, strict=False):
         if not isinstance(result, dict):
             raise ValueError("OpenAI moderation returned an invalid result")
         categories = result.get("categories") or {}

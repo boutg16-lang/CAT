@@ -12,8 +12,8 @@
 
 [project]
 name = "oussama-cutter"
-# PEP 440-compatible distribution version; the UI displays 7.32.4-pro.
-version = "7.51.0+pro"
+# PEP 440-compatible distribution version; the UI displays 7.52.0-pro.
+version = "7.52.0+pro"
 description = "OUSSAMA Cutter — استوديو عربي احترافي لتحويل الفيديوهات الطويلة إلى مقاطع قصيرة مع المونتاج الذكي والترجمة والأمان قبل النشر."
 readme = "README.md"
 requires-python = ">=3.10,<3.13"
@@ -89,7 +89,7 @@ py-modules = ["main_improved", "app_version", "app_brand"]
 packages = ["scripts", "webui", "i18n"]
 
 [tool.ruff]
-target-version = "py39"
+target-version = "py310"
 exclude = [".venv", "build", "dist", "models", "VIRALS", ".gradio", "*.ipynb"]
 
 [tool.ruff.lint]
@@ -126,3 +126,6 @@ omit = ["*/export_xml_lib/*", "*/tests/*"]
 [tool.coverage.report]
 show_missing = true
 skip_covered = true
+
+[tool.setuptools.exclude-package-data]
+"*" = ["*.py[cod]", "__pycache__/*"]

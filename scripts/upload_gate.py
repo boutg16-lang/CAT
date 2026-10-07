@@ -28,6 +28,7 @@ Design notes
 
 import datetime as _datetime
 import json
+import logging
 import os
 import sys
 import time
@@ -39,6 +40,8 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 from scripts import content_guard
 from scripts.metadata_compliance import check_metadata, summarize_metadata
 from scripts.title_text import fit_publish_title
+
+logger = logging.getLogger(__name__)
 
 PUBLISH_BLOCKLIST = "publish_blocklist.json"
 SAFETY_REPORT = "safety_report.json"
@@ -182,13 +185,13 @@ def _report_entry_matches_clip(project_folder, index, entry, require_boundaries=
             return False
         try:
             return all(abs(float(left) - float(right)) <= 0.25
-                       for left, right in zip(current_times, report_times))
+                       for left, right in zip(current_times, report_times, strict=False))
         except (TypeError, ValueError):
             return False
     if all(value is not None for value in current_times + report_times):
         try:
             return all(abs(float(left) - float(right)) <= 0.25
-                       for left, right in zip(current_times, report_times))
+                       for left, right in zip(current_times, report_times, strict=False))
         except (TypeError, ValueError):
             return False
     current_title = str(current.get("title") or "").strip().casefold()
@@ -592,8 +595,17 @@ def check_clip(project_folder, index=None, title="", caption="", hashtags=None,
     try:
         from scripts.music_fingerprint import music_gate_reasons
         reasons += music_gate_reasons(project_folder, index, gate=music_gate)
-    except Exception:
-        pass  # never let an optional check crash the gate
+    except Exception as exc:
+        # Optional in warn/off mode, but in "block" mode a failure must not
+        # silently drop the copyright gate.
+        print("[upload_gate] music fingerprint check failed: {}".format(exc))
+        if str(music_gate or "").strip().lower() == "block":
+            reasons.append({
+                "source": "music_fingerprint",
+                "detail": "music copyright check could not run ({}); refusing "
+                          "upload".format(exc),
+                "severity": "high",
+            })
 
     meta = check_metadata(title, caption, hashtags or [], extra_rules_path)
 
@@ -613,8 +625,15 @@ def check_clip(project_folder, index=None, title="", caption="", hashtags=None,
                     semantic.get("explanation", "policy pattern detected")),
                 "severity": "high",
             })
-    except Exception:
-        pass
+    except Exception as exc:
+        error = "{}: {}".format(type(exc).__name__, exc)[:500]
+        logger.error("Publish metadata safety check failed; refusing upload: %s", error)
+        reasons.append({
+            "source": "semantic_safety",
+            "code": "semantic_safety_unavailable",
+            "detail": "local semantic safety check failed; upload refused: {}".format(error),
+            "severity": "high",
+        })
 
     if not meta["ok"]:
         reasons.append({
@@ -1224,8 +1243,21 @@ def _save_token(platform, payload):
     path = _token_file(platform)
     os.makedirs(os.path.dirname(path), exist_ok=True)
     tmp = path + ".tmp"
-    with open(tmp, "w", encoding="utf-8") as f:
-        json.dump(payload, f, ensure_ascii=False, indent=2)
+    # OAuth tokens are credentials: create the temp file 0600 from the start so
+    # it is never briefly world/group-readable, then atomically replace. The
+    # final file inherits the 0600 mode of the temp file.
+    fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            json.dump(payload, f, ensure_ascii=False, indent=2)
+            f.flush()
+            os.fsync(f.fileno())
+    except Exception:
+        try:
+            os.remove(tmp)
+        except OSError:
+            pass
+        raise
     os.replace(tmp, path)
     return path
 

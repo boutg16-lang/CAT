@@ -1,3 +1,10 @@
+# OUSSAMA Cutter 7.52.0-pro candidate
+
+## Local browser pairing reliability — 2026-10-07
+
+- The local browser tester identifies CAT through a loopback health marker, verifies the exact CAT page title for compatibility, and discovers the actual WebUI port in the launcher’s `7860–7879` range. The resolved URL is shown before pairing; a failed check does not consume the one-time pairing code.
+- Added regression tests for the health endpoint, fallback-port discovery, and rejection of unrelated local services.
+
 # ViralCutter 7.0.1-pro
 
 ## Advanced Production & Retention Upgrades — Aug 2026

@@ -964,9 +964,9 @@ if _arabic_text is not None:
 else:
     _ARABIC_NUM_TRANSLATION = str.maketrans({
         # Arabic-Indic digits U+0660..U+0669 (٠١٢٣٤٥٦٧٨٩)
-        **{ord(src): dst for src, dst in zip("٠١٢٣٤٥٦٧٨٩", "0123456789")},
+        **{ord(src): dst for src, dst in zip("٠١٢٣٤٥٦٧٨٩", "0123456789", strict=False)},
         # Persian digits U+06F0..U+06F9 (۰۱۲۳۴۵۶۷۸۹)
-        **{ord(src): dst for src, dst in zip("۰۱۲۳۴۵۶۷۸۹", "0123456789")},
+        **{ord(src): dst for src, dst in zip("۰۱۲۳۴۵۶۷۸۹", "0123456789", strict=False)},
         # Arabic decimal separator ٫ (U+066B) and the Arabic comma ٬ (U+066C)
         # — Arabic/Darija LLM output routinely uses both as a decimal point.
         0x066B: ".",
@@ -1083,6 +1083,48 @@ def segments_source_fingerprint(data):
     if not isinstance(source_meta, dict):
         return None
     return source_meta.get("source_video_fp")
+
+
+def segment_cache_staleness_reason(
+        data, current_source_fingerprint, current_config_fingerprint,
+        current_transcript_fingerprint=None):
+    """Return why saved segment choices cannot be safely reused, or None."""
+    if not isinstance(data, dict):
+        return "invalid_cache"
+
+    source_meta = data.get("source_meta")
+    if not isinstance(source_meta, dict):
+        return "missing_source_metadata"
+
+    stored_source = source_meta.get("source_video_fp")
+    if not stored_source:
+        return "missing_source_fingerprint"
+    if not current_source_fingerprint:
+        return "current_source_unavailable"
+    if stored_source != current_source_fingerprint:
+        return "source_video_changed"
+
+    stored_config = source_meta.get("config_fp")
+    if not stored_config:
+        return "missing_config_fingerprint"
+    if not current_config_fingerprint:
+        return "current_settings_unavailable"
+    if stored_config != current_config_fingerprint:
+        return "settings_changed"
+
+    selection_config = data.get("selection_config")
+    stored_transcript = source_meta.get("transcript_fp")
+    if not stored_transcript and isinstance(selection_config, dict):
+        stored_transcript = selection_config.get("transcript_fingerprint")
+    if stored_transcript and not current_transcript_fingerprint:
+        return "current_transcript_unavailable"
+    if current_transcript_fingerprint:
+        if not stored_transcript:
+            return "missing_transcript_fingerprint"
+        if stored_transcript != current_transcript_fingerprint:
+            return "transcript_changed"
+
+    return None
 
 
 # Schema/prompt versioning (v7.40): embedded in the segments config

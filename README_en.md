@@ -1,11 +1,10 @@
 # OUSSAMA Cutter
 [![CI](https://github.com/boutg16-lang/CAT/actions/workflows/ci.yml/badge.svg)](https://github.com/boutg16-lang/CAT/actions/workflows/ci.yml)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
-[![Tests](https://img.shields.io/badge/tests-1238%20passed-brightgreen)](tests/)
 [![Discord](https://dcbadge.limes.pink/api/server/tAdPHFAbud)](https://discord.gg/tAdPHFAbud)<br>
 
-**OUSSAMA Cutter — 100% Free, Local, and Unlimited Open-Source Alternative to Opus Clip**
-Turn long YouTube videos into viral shorts optimized for TikTok, Instagram Reels, and YouTube Shorts – with state-of-the-art AI, dynamic captions, precise *face tracking*, and automatic translation. All running on your machine.
+**OUSSAMA Cutter — Free, open-source alternative to Opus Clip with local processing and optional online services.**
+Turn long YouTube videos into viral shorts optimized for TikTok, Instagram Reels, and YouTube Shorts – with state-of-the-art AI, dynamic captions, precise *face tracking*, and automatic translation. Media processing runs locally; selected online features may send the data required by that service.
 
 [![Stars](https://img.shields.io/github/stars/boutg16-lang/CAT?style=social)](https://github.com/boutg16-lang/CAT/stargazers)
 [![Forks](https://img.shields.io/github/forks/boutg16-lang/CAT?style=social)](https://github.com/boutg16-lang/CAT/network/members)
@@ -26,14 +25,16 @@ Forget expensive subscriptions and minute limits. OUSSAMA Cutter offers unlimite
 | Feature | OUSSAMA Cutter (Open-Source) | Opus Clip / Klap / Munch (SaaS) |
 | :--- | :--- | :--- |
 | **Price** | **Free & Unlimited** | $20–$100/mo + minute limits |
-| **Privacy** | **100% Local** (Your data never leaves your PC) | Upload to third-party cloud |
+| **Privacy** | **Local-first** (media processing is local; online services transmit the data they need) | Upload to third-party cloud |
 | **AI & LLM** | **Flexible**: Gemini (Free), GPT-4, **Local GGUF (Offline)** | Only what they offer |
 | **Face Tracking** | **Split Screen (2 faces)**, Active Speaker (Exp.), Auto | Basic or extra cost |
 | **Translation** | **Yes** (Translate captions to 10+ languages) | Limited features |
 | **Editing** | **Export XML to Premiere Pro** (Beta) | Limited web editor |
 | **Watermark** | **ZERO** | Yes (on free plans) |
 
-**Professional results, total privacy, and zero cost.**
+**Professional results with local processing and clear control over online services.**
+
+See the [security and network policy](SECURITY.md#network-and-data-flow) for what may be sent when online features are used.
 
 ## Key Features 🚀
 
@@ -58,6 +59,8 @@ Forget expensive subscriptions and minute limits. OUSSAMA Cutter offers unlimite
 
 ![WebUi Library](https://github.com/user-attachments/assets/b0204e4b-0e5d-4ee4-b7b4-cac044b76c24)
 *Library: OpusClip-style gallery and intuitive controls*
+
+> **Local browser testing:** see [`docs/browser-bridge.md`](docs/browser-bridge.md) for a consent-based test session in an isolated Chromium profile on your computer.
 
 ## Local Installation (Super Fast ⚡)
 
@@ -163,5 +166,5 @@ ViralCutter is community-maintained. Join us to democratize AI content creation!
 - ✅ **Reproducible installs**: `uv sync` (uses `uv.lock`); the classic `install_dependencies.bat` flow still works.
 
 
-**Current Version**: 7.51.0-pro — dubbing in the UI (Publish tab) with explicit network consent, plus the signed update channel
+**Current Version**: 7.52.0-pro — security hardening (fail-closed gates, 0600 OAuth tokens), least-privilege CI and QA tests
 *ViralCutter: Because viral clips shouldn't cost a fortune.* 🚀
